@@ -38,7 +38,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run spider for UTC yesterday
-        run: python spider_yesterday_1012.py
+        run: python spider_2days_1031.py
 
       - name: Commit daily results (rebase-safe)
         run: |
