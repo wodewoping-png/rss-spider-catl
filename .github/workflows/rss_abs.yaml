@@ -1,0 +1,100 @@
+name: RSS Spider + Weekly Aggregate with Abstracts
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 每天 UTC 01:00 跑日抓取
+    - cron: "50 2 * * 1"  # 每周一 UTC 01:10 跑周汇总（错开10分钟）
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 允许 Actions push
+
+# 防止两个触发器并发写 main 导致冲突
+concurrency:
+  group: rss-spider-main
+  cancel-in-progress: false
+
+jobs:
+  run-rss-spider:
+    # 每天那条 cron 或手动触发都可以跑这个 job
+    if: github.event.schedule == '0 1 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0              # 允许后续 pull/rebase
+          persist-credentials: true
+
+      - name: Print UTC time
+        run: date -u
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run spider for UTC yesterday
+        run: python spider_abstract_1216.py
+
+      - name: Commit daily results (rebase-safe)
+        run: |
+          set -e
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add output/*.csv || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: daily RSS results (UTC $(date -u +'%Y-%m-%d'))"
+          git fetch origin main
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+  run-weekly-aggregate-with-abs:
+    # 只在“周一 02:50”那条 cron 或手动触发时跑
+    if: github.event.schedule == '10 1 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Print UTC time
+        run: date -u
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Weekly aggregate with abstracts (UTC)
+        run: python weekly_aggrerate_with_abs.py
+
+      - name: Commit weekly results (rebase-safe)
+        run: |
+          set -e
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add output/weekly/*.csv || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: weekly RSS aggregate with abstracts (UTC $(date -u +'%Y-%m-%d'))"
+          git fetch origin main
+          git pull --rebase origin main
+          git push origin HEAD:main
