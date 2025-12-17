@@ -26,9 +26,9 @@ day_before_utc = today_utc - timedelta(days=2)
 TARGET_DATES = {yesterday_utc, day_before_utc}
 
 # 昨天 CSV（你昨天生成的那个）
-YESTERDAY_CSV = OUTPUT_DIR / f"news_with_abstract_{yesterday_utc.strftime('%Y-%m-%d')}.csv"
+YESTERDAY_CSV = OUTPUT_DIR / f"news_{yesterday_utc.strftime('%Y-%m-%d')}.csv"
 # 今天输出 CSV
-TODAY_CSV = OUTPUT_DIR / f"news_with_abstract_{today_utc.strftime('%Y-%m-%d')}.csv"
+TODAY_CSV = OUTPUT_DIR / f"news_{today_utc.strftime('%Y-%m-%d')}.csv"
 
 # API 配置
 REQ_TIMEOUT = 15
@@ -775,3 +775,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
