@@ -26,3 +26,9 @@ https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv
 https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science
 https://onlinelibrary.wiley.com/feed/15213773/most-recent
 https://pubs.acs.org/action/showFeed?type=axatoc&feed=rss&jc=jacsat
+https://www.nature.com/natelectron.rss
+https://www.nature.com/nrct.rss
+https://www.cell.com/oneear/inpress.rss
+https://www.cell.com/matter/inpress.rss
+https://rss.sciencedirect.com/publication/science/03062619
+https://rss.sciencedirect.com/publication/science/03014215
