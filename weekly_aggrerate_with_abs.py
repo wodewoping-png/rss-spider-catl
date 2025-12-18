@@ -1,4 +1,4 @@
-# weekly_aggregate.py  (rolling 7 days: today + previous 6 days)
+# weekly_aggregate_with_abs.py
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit, urlunsplit
@@ -8,6 +8,7 @@ OUTPUT_DIR = Path("output")
 WEEKLY_DIR = OUTPUT_DIR / "weekly"
 WEEKLY_DIR.mkdir(parents=True, exist_ok=True)
 
+# ====== 你要的：滚动 7 天（今天+前6天）======
 def daily_file_for(d):
     """
     优先读取新版：news_with_abstract_YYYY-MM-DD.csv
@@ -20,6 +21,10 @@ def daily_file_for(d):
     return f_old
 
 def normalize_link(url: str) -> str:
+    """
+    link 去重专用：去掉 query/hash，只保留 scheme+host+path
+    这样 ?af=R、utm、rss 参数不会导致重复。
+    """
     if not isinstance(url, str) or not url.strip():
         return ""
     parts = urlsplit(url.strip())
@@ -27,7 +32,7 @@ def normalize_link(url: str) -> str:
 
 def normalize_pub_date(df: pd.DataFrame) -> pd.DataFrame:
     """
-    统一 pub_date 为 UTC aware；若 pub_date 为空，尝试用 published 兜底解析。
+    统一 pub_date 为 UTC aware；若 pub_date 为空，用 published 兜底解析。
     """
     if "pub_date" in df.columns:
         df["pub_date"] = pd.to_datetime(df["pub_date"], utc=True, errors="coerce")
@@ -39,10 +44,18 @@ def normalize_pub_date(df: pd.DataFrame) -> pd.DataFrame:
         if missing.any():
             pub2 = pd.to_datetime(df.loc[missing, "published"], utc=True, errors="coerce")
             df.loc[missing, "pub_date"] = pub2
-
     return df
 
+def is_nonempty_text(x) -> bool:
+    s = "" if x is None else str(x)
+    return bool(s.strip())
+
 def pick_better_abstract(a1: str, a2: str) -> str:
+    """
+    选更好的 abstract：
+    - 非空优先
+    - 都非空取更长的（通常更完整）
+    """
     a1 = "" if a1 is None else str(a1)
     a2 = "" if a2 is None else str(a2)
     a1s = a1.strip()
@@ -55,23 +68,12 @@ def pick_better_abstract(a1: str, a2: str) -> str:
         return a1s
     return a2s if len(a2s) > len(a1s) else a1s
 
-def build_dedupe_key(row) -> str:
-    doi = str(row.get("doi", "") or "").strip().lower()
-    if doi:
-        return f"doi:{doi}"
-    link = normalize_link(str(row.get("link", "") or ""))
-    if link:
-        return f"url:{link.lower()}"
-    title = str(row.get("title", "") or "").strip().lower()
-    return f"title:{title}"
-
-def aggregate_rolling_7_days():
-    # ====== 窗口：今天(UTC) + 往前6天 ======
+def aggregate_rolling7_dedupe_by_link():
     today_utc = datetime.now(timezone.utc).date()
     start_date = today_utc - timedelta(days=6)
-    end_date = today_utc  # inclusive by date
+    end_date = today_utc
 
-    # 收集 7 个 daily 文件
+    # 收集 7 天文件
     files = []
     d = start_date
     while d <= end_date:
@@ -80,7 +82,7 @@ def aggregate_rolling_7_days():
             files.append(f)
         d += timedelta(days=1)
 
-    out = WEEKLY_DIR / f"news_with_abstract_{end_date.strftime('%Y-%m-%d')}.csv"
+    out = WEEKLY_DIR / f"news_rolling7_end_{end_date.strftime('%Y-%m-%d')}.csv"
     empty_cols = ["title", "link", "published", "source", "pub_date", "doi", "abstract", "abstract_source"]
 
     if not files:
@@ -89,14 +91,14 @@ def aggregate_rolling_7_days():
         print(f"Window: {start_date} to {end_date} (UTC dates)")
         return
 
-    # 读取并合并
     dfs = []
     for f in files:
         try:
-            # keep_default_na=False：避免 "" 被读成 NaN，保证 abstract 统一为空串
+            # keep_default_na=False：把空字符串保留为 ""，避免 NaN 搞出 nan/空串不统一
             df = pd.read_csv(f, encoding="utf-8-sig", keep_default_na=False)
             df = normalize_pub_date(df)
 
+            # 统一列存在 & 类型
             for col in ["title", "link", "published", "source", "doi", "abstract", "abstract_source"]:
                 if col not in df.columns:
                     df[col] = ""
@@ -115,13 +117,12 @@ def aggregate_rolling_7_days():
 
     all_df = pd.concat(dfs, ignore_index=True)
 
-    # ====== pub_date 必须在滚动7天窗口内，否则丢弃 ======
+    # ====== 过滤 pub_date 落在滚动7天窗口内 ======
     start_dt = pd.Timestamp(start_date, tz="UTC")
-    end_dt_exclusive = pd.Timestamp(end_date + timedelta(days=1), tz="UTC")  # [start, end)
-
+    end_dt_exclusive = pd.Timestamp(end_date + timedelta(days=1), tz="UTC")
     all_df["pub_date"] = pd.to_datetime(all_df["pub_date"], utc=True, errors="coerce")
-    in_window = all_df["pub_date"].notna() & (all_df["pub_date"] >= start_dt) & (all_df["pub_date"] < end_dt_exclusive)
 
+    in_window = all_df["pub_date"].notna() & (all_df["pub_date"] >= start_dt) & (all_df["pub_date"] < end_dt_exclusive)
     before = len(all_df)
     all_df = all_df.loc[in_window].copy()
     after = len(all_df)
@@ -134,28 +135,32 @@ def aggregate_rolling_7_days():
         print(f"Window: {start_date} to {end_date} (UTC dates)")
         return
 
-    # ====== 去重 + abstract 覆盖 ======
-    all_df["dedupe_key"] = all_df.apply(build_dedupe_key, axis=1)
-    all_df = all_df.sort_values(by="pub_date", ascending=True)
+    # ====== 核心改动：只用 link 去重（规范化后）======
+    all_df["link_norm"] = all_df["link"].apply(normalize_link)
 
-    rows = []
-    for _, g in all_df.groupby("dedupe_key", sort=False):
-        base = g.iloc[0].copy()
+    # 对 link_norm 为空的行：退化为 title 去重 key（否则全挤成一坨）
+    # 但你说“只要 link 一样就删”，所以这里只是兜底，不影响 link 有值的主流情况
+    all_df.loc[all_df["link_norm"] == "", "link_norm"] = (
+        "title:" + all_df.loc[all_df["link_norm"] == "", "title"].astype(str).str.strip().str.lower()
+    )
 
-        best_abs = ""
-        best_abs_source = str(base.get("abstract_source", "") or "")
-        for __, r in g.iterrows():
-            cand = r.get("abstract", "")
-            new_best = pick_better_abstract(best_abs, cand)
-            if new_best != best_abs:
-                best_abs = new_best
-                best_abs_source = str(r.get("abstract_source", "") or best_abs_source)
+    # 排序：优先让“有摘要”的排在前面；再按 abstract 长度；再按 pub_date 早
+    all_df["has_abs"] = all_df["abstract"].apply(is_nonempty_text).astype(int)
+    all_df["abs_len"] = all_df["abstract"].astype(str).str.strip().str.len()
 
-        base["abstract"] = best_abs
-        base["abstract_source"] = best_abs_source
-        rows.append(base)
+    all_df = all_df.sort_values(
+        by=["link_norm", "has_abs", "abs_len", "pub_date"],
+        ascending=[True, False, False, True],
+        kind="mergesort"  # 稳定排序
+    )
 
-    dedup = pd.DataFrame(rows).drop(columns=["dedupe_key"], errors="ignore")
+    # 按 link_norm 去重：保留排序后的第一条（= 有摘要/更长摘要优先）
+    dedup = all_df.drop_duplicates(subset=["link_norm"], keep="first").copy()
+
+    # 清理辅助列
+    dedup = dedup.drop(columns=["link_norm", "has_abs", "abs_len"], errors="ignore")
+
+    # 最终按 pub_date 排序输出
     dedup["pub_date"] = pd.to_datetime(dedup["pub_date"], utc=True, errors="coerce")
     dedup = dedup.sort_values(by="pub_date", ascending=True)
 
@@ -164,4 +169,4 @@ def aggregate_rolling_7_days():
     print(f"Window: {start_date} to {end_date} (UTC dates)")
 
 if __name__ == "__main__":
-    aggregate_rolling_7_days()
+    aggregate_rolling7_dedupe_by_link()
