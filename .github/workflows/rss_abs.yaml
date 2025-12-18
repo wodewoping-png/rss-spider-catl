@@ -39,6 +39,8 @@ jobs:
 
       - name: Run spider for UTC yesterday
         run: python spider_abstract_1216.py
+        env:
+          PLAYWRIGHT_HEADLESS: "1"
 
       - name: Commit daily results (rebase-safe)
         run: |
