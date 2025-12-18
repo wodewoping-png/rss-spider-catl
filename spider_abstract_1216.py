@@ -26,6 +26,9 @@ yesterday_utc = today_utc - timedelta(days=1)
 day_before_utc = today_utc - timedelta(days=2)
 TARGET_DATES = {yesterday_utc, day_before_utc}
 
+# 今日抓取基准时间（UTC 00:00）
+TODAY_ANCHOR_DT = datetime(today_utc.year, today_utc.month, today_utc.day, tzinfo=timezone.utc)
+
 # 昨天CSV（用于复用&重试）
 YESTERDAY_CSV = OUTPUT_DIR / f"news_with_abstract_{yesterday_utc.strftime('%Y-%m-%d')}.csv"
 TODAY_CSV = OUTPUT_DIR / f"news_with_abstract_{today_utc.strftime('%Y-%m-%d')}.csv"
@@ -41,13 +44,14 @@ HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "1") == "1"
 IS_CI = (os.getenv("CI", "").lower() == "true")
 BROWSER_CHANNEL = os.getenv("PLAYWRIGHT_CHANNEL", "").strip().lower()
 
-# ✅ ScienceDirect 特殊源：发布日期不准 -> 直接抓最新 N 篇
+# ✅ ScienceDirect 特殊源：发布日期不准 -> 直接抓最新 N 篇 + pub_date 写抓取日期
 SD_FEED_APPLIED_ENERGY = "https://rss.sciencedirect.com/publication/science/03062619"
 SD_FEED_ENERGY_POLICY = "https://rss.sciencedirect.com/publication/science/03014215"
 SD_SPECIAL_LIMITS = {
     SD_FEED_APPLIED_ENERGY: 30,  # Applied Energy
     SD_FEED_ENERGY_POLICY: 7,    # Energy Policy
 }
+SD_SPECIAL_URLS = set(SD_SPECIAL_LIMITS.keys())
 
 # ================== 正则与工具 ==================
 
@@ -542,26 +546,32 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
         feed = feedparser.parse(feed_url)
         source_title = feed.feed.get("title", feed_url)
 
-        # ✅ ScienceDirect 特殊源：只抓最新 N 条（忽略 TARGET_DATES）
+        is_sd_special = feed_url in SD_SPECIAL_URLS
         special_limit = SD_SPECIAL_LIMITS.get(feed_url, 0)
         special_taken = 0
-        use_special = special_limit > 0
-        if use_special:
-            print(f"  ✅ ScienceDirect特殊策略启用：抓取最新 {special_limit} 条（不按RSS发布日期过滤）")
+
+        if is_sd_special:
+            print(f"  ✅ ScienceDirect特殊策略：抓最新 {special_limit} 条；pub_date 统一写抓取日期 {today_utc} (UTC)")
+        elif feed_url in (SD_FEED_APPLIED_ENERGY, SD_FEED_ENERGY_POLICY):
+            # 理论上不会进来（已在SD_SPECIAL_URLS），留作防御
+            print("  ✅ ScienceDirect特殊策略启用")
 
         for entry in feed.entries:
-            # ====== 1) 针对特殊 ScienceDirect：控制数量，不做日期过滤 ======
-            if use_special:
+            # ========== A) ScienceDirect 特殊源：只抓最新 N 条，不做日期过滤 ==========
+            if is_sd_special:
                 if special_taken >= special_limit:
                     break
+
+                # pub_date / published_str 直接写“抓取日期”
+                pub_date = TODAY_ANCHOR_DT
+                published_str = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+            # ========== B) 普通源：按昨天+前天过滤 ==========
             else:
-                # ====== 2) 普通源：按昨天+前天过滤 ======
                 pub_date = get_entry_pub_date(entry)
                 if not pub_date or pub_date.date() not in TARGET_DATES:
                     continue
-
-            # 对特殊源：pub_date 仍尽量解析记录（用于你后续判断）
-            pub_date = get_entry_pub_date(entry)
+                published_str = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
 
             title = get_entry_title(entry)
             if should_drop_by_title(title):
@@ -576,17 +586,19 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             # 昨天已有摘要 -> 直接复用
             if key in prev_has_abs_keys:
                 today_records[key] = {**prev_by_key[key], "must_have_abstract": False}
-                if not today_records[key].get("pub_date") and pub_date:
+                # 如果昨天缺 pub_date / published_str，用本次补齐
+                if not today_records[key].get("pub_date"):
                     today_records[key]["pub_date"] = pub_date
-                    today_records[key]["published_str"] = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
-                if use_special:
+                if not (today_records[key].get("published_str") or "").strip():
+                    today_records[key]["published_str"] = published_str
+                if is_sd_special:
                     special_taken += 1
                 continue
 
             abstract = ""
             abstract_source = ""
 
-            # ✅ Cell：Chem/Joule/OneEarth/Matter RSS description 抓摘要
+            # ✅ Cell：RSS description 就是摘要
             if is_cellpress_inpress_any(source_title, link):
                 abstract = clean_html_text(desc_html)
                 abstract_source = "rss_cell"
@@ -598,7 +610,7 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                     abstract = abs_txt
                     abstract_source = "rss_oup"
 
-            # ✅ ScienceDirect：仍不从 RSS 抽摘要（留空，后续走 API）
+            # ✅ ScienceDirect：不从 RSS 抽摘要（留空，后续走 API）
 
             must_have_abstract = key in prev_no_abs_recent3_keys
 
@@ -606,7 +618,7 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "title": title,
                 "link": link,
                 "source": source_title,
-                "published_str": pub_date.strftime("%Y-%m-%d %H:%M:%S %Z") if pub_date else "",
+                "published_str": published_str,
                 "pub_date": pub_date,
                 "doi": doi,
                 "abstract": (abstract or "").strip(),
@@ -614,11 +626,11 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "must_have_abstract": must_have_abstract,
             }
 
-            if use_special:
+            if is_sd_special:
                 special_taken += 1
 
-        if use_special:
-            print(f"  ✅ 特殊源实际收录：{special_taken}/{special_limit} 条（通过标题过滤/去重后可能少于limit）")
+        if is_sd_special:
+            print(f"  ✅ 特殊源实际收录：{special_taken}/{special_limit} 条（标题过滤/去重后可能少于limit）")
 
     return today_records
 
@@ -722,9 +734,9 @@ def main():
     print(f"▶ 目标日期(UTC)：{sorted(TARGET_DATES)}")
     print(f"▶ 昨日CSV：{YESTERDAY_CSV}")
     print(f"▶ 今日输出：{TODAY_CSV}")
-    print("▶ ScienceDirect 特殊源限制：")
+    print("▶ ScienceDirect 特殊源限制 + pub_date写抓取日期：")
     for k, v in SD_SPECIAL_LIMITS.items():
-        print(f"   - {k} -> latest {v}")
+        print(f"   - {k} -> latest {v}, pub_date={today_utc} (UTC)")
 
     prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys = load_yesterday_cache(YESTERDAY_CSV)
 
