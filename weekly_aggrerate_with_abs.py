@@ -1,4 +1,4 @@
-# weekly_aggregate.py
+# weekly_aggregate.py  (rolling 7 days: today + previous 6 days)
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit, urlunsplit
@@ -34,7 +34,6 @@ def normalize_pub_date(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["pub_date"] = pd.NaT
 
-    # 兜底：pub_date 解析失败时，用 published 再试一次
     if "published" in df.columns:
         missing = df["pub_date"].isna()
         if missing.any():
@@ -66,35 +65,35 @@ def build_dedupe_key(row) -> str:
     title = str(row.get("title", "") or "").strip().lower()
     return f"title:{title}"
 
-def aggregate_last_week():
+def aggregate_rolling_7_days():
+    # ====== 窗口：今天(UTC) + 往前6天 ======
     today_utc = datetime.now(timezone.utc).date()
+    start_date = today_utc - timedelta(days=6)
+    end_date = today_utc  # inclusive by date
 
-    iso = today_utc.isocalendar()
-    this_monday = today_utc - timedelta(days=iso.weekday - 1)
-    last_monday = this_monday - timedelta(days=7)
-    last_sunday = last_monday + timedelta(days=6)
-
-    # 收集上一周 7 个 daily 文件（按“日期”找，不按文件 mtime）
+    # 收集 7 个 daily 文件
     files = []
-    d = last_monday
-    while d <= last_sunday:
+    d = start_date
+    while d <= end_date:
         f = daily_file_for(d)
         if f.exists():
             files.append(f)
         d += timedelta(days=1)
 
-    out = WEEKLY_DIR / f"news_with_abstract_week_{last_sunday.isocalendar().year}-W{last_sunday.isocalendar().week:02d}.csv"
-
+    out = WEEKLY_DIR / f"news_with_abstract_{end_date.strftime('%Y-%m-%d')}.csv"
     empty_cols = ["title", "link", "published", "source", "pub_date", "doi", "abstract", "abstract_source"]
+
     if not files:
         pd.DataFrame(columns=empty_cols).to_csv(out, index=False, encoding="utf-8-sig")
-        print(f"Weekly aggregate: 0 records → {out}")
+        print(f"Rolling7 aggregate: 0 records → {out}")
+        print(f"Window: {start_date} to {end_date} (UTC dates)")
         return
 
     # 读取并合并
     dfs = []
     for f in files:
         try:
+            # keep_default_na=False：避免 "" 被读成 NaN，保证 abstract 统一为空串
             df = pd.read_csv(f, encoding="utf-8-sig", keep_default_na=False)
             df = normalize_pub_date(df)
 
@@ -110,14 +109,15 @@ def aggregate_last_week():
 
     if not dfs:
         pd.DataFrame(columns=empty_cols).to_csv(out, index=False, encoding="utf-8-sig")
-        print(f"Weekly aggregate: 0 records → {out}")
+        print(f"Rolling7 aggregate: 0 records → {out}")
+        print(f"Window: {start_date} to {end_date} (UTC dates)")
         return
 
     all_df = pd.concat(dfs, ignore_index=True)
 
-    # ===== 关键：只保留 pub_date 在“上周窗口”的记录 =====
-    start_dt = pd.Timestamp(last_monday, tz="UTC")
-    end_dt_exclusive = pd.Timestamp(last_sunday + timedelta(days=1), tz="UTC")  # [start, end)
+    # ====== pub_date 必须在滚动7天窗口内，否则丢弃 ======
+    start_dt = pd.Timestamp(start_date, tz="UTC")
+    end_dt_exclusive = pd.Timestamp(end_date + timedelta(days=1), tz="UTC")  # [start, end)
 
     all_df["pub_date"] = pd.to_datetime(all_df["pub_date"], utc=True, errors="coerce")
     in_window = all_df["pub_date"].notna() & (all_df["pub_date"] >= start_dt) & (all_df["pub_date"] < end_dt_exclusive)
@@ -130,23 +130,21 @@ def aggregate_last_week():
 
     if all_df.empty:
         pd.DataFrame(columns=empty_cols).to_csv(out, index=False, encoding="utf-8-sig")
-        print(f"Weekly aggregate: 0 records after pub_date filtering → {out}")
-        print(f"Window: {last_monday} to {last_sunday} (UTC dates)")
+        print(f"Rolling7 aggregate: 0 records after pub_date filtering → {out}")
+        print(f"Window: {start_date} to {end_date} (UTC dates)")
         return
 
-    # ===== 去重 + abstract 覆盖 =====
+    # ====== 去重 + abstract 覆盖 ======
     all_df["dedupe_key"] = all_df.apply(build_dedupe_key, axis=1)
-
-    # 排序：最早 pub_date 做 base
     all_df = all_df.sort_values(by="pub_date", ascending=True)
 
     rows = []
-    for k, g in all_df.groupby("dedupe_key", sort=False):
+    for _, g in all_df.groupby("dedupe_key", sort=False):
         base = g.iloc[0].copy()
 
         best_abs = ""
         best_abs_source = str(base.get("abstract_source", "") or "")
-        for _, r in g.iterrows():
+        for __, r in g.iterrows():
             cand = r.get("abstract", "")
             new_best = pick_better_abstract(best_abs, cand)
             if new_best != best_abs:
@@ -158,13 +156,12 @@ def aggregate_last_week():
         rows.append(base)
 
     dedup = pd.DataFrame(rows).drop(columns=["dedupe_key"], errors="ignore")
-
     dedup["pub_date"] = pd.to_datetime(dedup["pub_date"], utc=True, errors="coerce")
     dedup = dedup.sort_values(by="pub_date", ascending=True)
 
     dedup.to_csv(out, index=False, encoding="utf-8-sig")
-    print(f"Weekly aggregate: {len(dedup)} records from {len(files)} files → {out}")
-    print(f"Window: {last_monday} to {last_sunday} (UTC dates)")
+    print(f"Rolling7 aggregate: {len(dedup)} records from {len(files)} files → {out}")
+    print(f"Window: {start_date} to {end_date} (UTC dates)")
 
 if __name__ == "__main__":
-    aggregate_last_week()
+    aggregate_rolling_7_days()
