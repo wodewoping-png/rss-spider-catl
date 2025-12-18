@@ -165,6 +165,10 @@ def parse_date_strict(d: str):
         return None
 
 def parse_available_online_date(description_html: str):
+    """
+    只用于补“日期”，不是用来抽摘要。
+    ScienceDirect 的 RSS 常出现 Available online ...，用它能帮你把 pub_date 更准一些。
+    """
     if not description_html:
         return None
     desc_txt = clean_html_text(description_html)
@@ -254,14 +258,24 @@ def extract_oup_abstract_from_rss(desc_html: str) -> str:
         return ""
     return clean_html_text(m.group(1))
 
-def is_cellpress_chem_or_joule(source_title: str, link: str) -> bool:
-    src = (source_title or "").lower()
+# ✅ Cell Press：你希望把 One Earth / Matter 加进来，并沿用 Joule/Chem 的 RSS 抓摘要方式
+CELL_INPRESS_JOURNALS = {"chem", "joule", "oneear", "matter"}
+
+def is_cellpress_inpress_any(source_title: str, link: str) -> bool:
+    """
+    识别 Cell Press 的 inpress 文章页面（不是 RSS URL）
+    - link 通常是 https://www.cell.com/<journal>/fulltext/... or /article/... /S...
+    - 或者 https://www.cell.com/<journal>/abstract/...
+    我们只要在 link 路径里捕获 /<journal>/ 且 journal 在白名单即可
+    """
     ll = (link or "").lower()
-    return (
-        ("cell.com" in ll and ("chem" in ll or "joule" in ll))
-        or ("chem (cell press" in src)
-        or ("joule (cell press" in src)
-    )
+    if "cell.com" not in ll:
+        return False
+    m = re.search(r"cell\.com/([^/]+)/", ll)
+    if not m:
+        return False
+    j = m.group(1).strip().lower()
+    return j in CELL_INPRESS_JOURNALS
 
 def is_oup_nsr(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
@@ -272,6 +286,10 @@ def is_acs_energy_letters(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
     ll = (link or "").lower()
     return ("acs energy letters" in src) or ("acsenergylett" in ll)
+
+def is_sciencedirect_feed_url(feed_url: str) -> bool:
+    u = (feed_url or "").lower()
+    return "rss.sciencedirect.com/publication" in u
 
 # ================== API 摘要：Crossref / S2 / OpenAlex / PubMed ==================
 
@@ -393,6 +411,7 @@ def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]
         return "", ""
     print(f"   [API] DOI={doi} (aggressive={aggressive})")
 
+    # aggressive：ACS Energy Letters 更偏向 S2/OpenAlex 先试
     if aggressive:
         order = (query_semanticscholar_abstract, query_openalex_abstract, query_crossref_abstract, query_pubmed_abstract)
     else:
@@ -531,10 +550,12 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
     urls = read_feed_list(FEED_LIST_FILE)
     today_records = {}
 
-    for url in urls:
-        print(f"\n📡 RSS: {url}")
-        feed = feedparser.parse(url)
-        source_title = feed.feed.get("title", url)
+    for feed_url in urls:
+        print(f"\n📡 RSS: {feed_url}")
+        feed = feedparser.parse(feed_url)
+        source_title = feed.feed.get("title", feed_url)
+
+        sd_feed = is_sciencedirect_feed_url(feed_url)  # ✅ ScienceDirect RSS：不从 RSS 抓摘要
 
         for entry in feed.entries:
             pub_date = get_entry_pub_date(entry)
@@ -563,17 +584,20 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             abstract = ""
             abstract_source = ""
 
-            # Cell：RSS description 就是摘要
-            if is_cellpress_chem_or_joule(source_title, link):
+            # ✅ Cell：Chem/Joule/OneEarth/Matter 一律 RSS description 抓摘要（沿用你之前的做法）
+            if is_cellpress_inpress_any(source_title, link):
                 abstract = clean_html_text(desc_html)
                 abstract_source = "rss_cell"
 
-            # OUP(NSR)：RSS description 内含 Abstract
+            # ✅ OUP(NSR)：RSS description 内含 Abstract
             elif is_oup_nsr(source_title, link):
                 abs_txt = extract_oup_abstract_from_rss(desc_html)
                 if abs_txt:
                     abstract = abs_txt
                     abstract_source = "rss_oup"
+
+            # ✅ ScienceDirect：明确不从 RSS 抽摘要（abstract 继续留空，后续走 API）
+            # elif sd_feed: pass
 
             must_have_abstract = key in prev_no_abs_recent3_keys
 
@@ -584,8 +608,8 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "published_str": pub_date.strftime("%Y-%m-%d %H:%M:%S %Z"),
                 "pub_date": pub_date,
                 "doi": doi,
-                "abstract": abstract.strip(),
-                "abstract_source": abstract_source,
+                "abstract": (abstract or "").strip(),
+                "abstract_source": (abstract_source or "").strip(),
                 "must_have_abstract": must_have_abstract,
             }
 
@@ -653,7 +677,7 @@ def enrich_with_html_then_api(records: list[dict]):
 
             browser.close()
 
-    # API 阶段
+    # API 阶段（Crossref / S2 / OpenAlex / PubMed）
     print("\n🔧 API阶段：补全剩余摘要...")
     for r in records:
         if (r.get("abstract") or "").strip():
