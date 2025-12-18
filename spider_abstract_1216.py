@@ -39,10 +39,15 @@ NCBI_EMAIL = os.getenv("NCBI_EMAIL", "qiaochuzhang@outlook.com")
 # Playwright：CI 默认 headless
 HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "1") == "1"
 IS_CI = (os.getenv("CI", "").lower() == "true")
-
-# 浏览器选择：CI 建议用 playwright 自带 chromium
-# 可选值：""(默认)、"chrome"
 BROWSER_CHANNEL = os.getenv("PLAYWRIGHT_CHANNEL", "").strip().lower()
+
+# ✅ ScienceDirect 特殊源：发布日期不准 -> 直接抓最新 N 篇
+SD_FEED_APPLIED_ENERGY = "https://rss.sciencedirect.com/publication/science/03062619"
+SD_FEED_ENERGY_POLICY = "https://rss.sciencedirect.com/publication/science/03014215"
+SD_SPECIAL_LIMITS = {
+    SD_FEED_APPLIED_ENERGY: 30,  # Applied Energy
+    SD_FEED_ENERGY_POLICY: 7,    # Energy Policy
+}
 
 # ================== 正则与工具 ==================
 
@@ -165,10 +170,6 @@ def parse_date_strict(d: str):
         return None
 
 def parse_available_online_date(description_html: str):
-    """
-    只用于补“日期”，不是用来抽摘要。
-    ScienceDirect 的 RSS 常出现 Available online ...，用它能帮你把 pub_date 更准一些。
-    """
     if not description_html:
         return None
     desc_txt = clean_html_text(description_html)
@@ -258,16 +259,9 @@ def extract_oup_abstract_from_rss(desc_html: str) -> str:
         return ""
     return clean_html_text(m.group(1))
 
-# ✅ Cell Press：你希望把 One Earth / Matter 加进来，并沿用 Joule/Chem 的 RSS 抓摘要方式
 CELL_INPRESS_JOURNALS = {"chem", "joule", "oneear", "matter"}
 
 def is_cellpress_inpress_any(source_title: str, link: str) -> bool:
-    """
-    识别 Cell Press 的 inpress 文章页面（不是 RSS URL）
-    - link 通常是 https://www.cell.com/<journal>/fulltext/... or /article/... /S...
-    - 或者 https://www.cell.com/<journal>/abstract/...
-    我们只要在 link 路径里捕获 /<journal>/ 且 journal 在白名单即可
-    """
     ll = (link or "").lower()
     if "cell.com" not in ll:
         return False
@@ -286,10 +280,6 @@ def is_acs_energy_letters(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
     ll = (link or "").lower()
     return ("acs energy letters" in src) or ("acsenergylett" in ll)
-
-def is_sciencedirect_feed_url(feed_url: str) -> bool:
-    u = (feed_url or "").lower()
-    return "rss.sciencedirect.com/publication" in u
 
 # ================== API 摘要：Crossref / S2 / OpenAlex / PubMed ==================
 
@@ -411,7 +401,6 @@ def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]
         return "", ""
     print(f"   [API] DOI={doi} (aggressive={aggressive})")
 
-    # aggressive：ACS Energy Letters 更偏向 S2/OpenAlex 先试
     if aggressive:
         order = (query_semanticscholar_abstract, query_openalex_abstract, query_crossref_abstract, query_pubmed_abstract)
     else:
@@ -427,7 +416,6 @@ def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]
 # ================== Playwright：仅 Nature / RSC ==================
 
 def maybe_human_like_wait():
-    # CI 下不做“拟人化”
     if IS_CI:
         return
     time.sleep(random.uniform(0.6, 1.6))
@@ -486,7 +474,6 @@ def launch_browser(p):
     kwargs = dict(headless=HEADLESS, slow_mo=0 if HEADLESS else random.randint(50, 120))
     if BROWSER_CHANNEL in ("chrome", "msedge", "edge"):
         kwargs["channel"] = "chrome" if BROWSER_CHANNEL == "chrome" else "msedge"
-    # CI 更稳：不传 channel 就用 playwright 自带 chromium
     return p.chromium.launch(**kwargs)
 
 # ================== 昨日缓存 ==================
@@ -523,7 +510,7 @@ def load_yesterday_cache(path: Path):
             "published_str": str(row.get("published_str", "") or ""),
             "pub_date": pub_dt,
             "doi": doi,
-            "abstract": abstract,  # 统一：永远字符串
+            "abstract": abstract,
             "abstract_source": str(row.get("abstract_source", "") or ""),
             "must_have_abstract": False,
         }
@@ -555,12 +542,26 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
         feed = feedparser.parse(feed_url)
         source_title = feed.feed.get("title", feed_url)
 
-        sd_feed = is_sciencedirect_feed_url(feed_url)  # ✅ ScienceDirect RSS：不从 RSS 抓摘要
+        # ✅ ScienceDirect 特殊源：只抓最新 N 条（忽略 TARGET_DATES）
+        special_limit = SD_SPECIAL_LIMITS.get(feed_url, 0)
+        special_taken = 0
+        use_special = special_limit > 0
+        if use_special:
+            print(f"  ✅ ScienceDirect特殊策略启用：抓取最新 {special_limit} 条（不按RSS发布日期过滤）")
 
         for entry in feed.entries:
+            # ====== 1) 针对特殊 ScienceDirect：控制数量，不做日期过滤 ======
+            if use_special:
+                if special_taken >= special_limit:
+                    break
+            else:
+                # ====== 2) 普通源：按昨天+前天过滤 ======
+                pub_date = get_entry_pub_date(entry)
+                if not pub_date or pub_date.date() not in TARGET_DATES:
+                    continue
+
+            # 对特殊源：pub_date 仍尽量解析记录（用于你后续判断）
             pub_date = get_entry_pub_date(entry)
-            if not pub_date or pub_date.date() not in TARGET_DATES:
-                continue
 
             title = get_entry_title(entry)
             if should_drop_by_title(title):
@@ -575,16 +576,17 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             # 昨天已有摘要 -> 直接复用
             if key in prev_has_abs_keys:
                 today_records[key] = {**prev_by_key[key], "must_have_abstract": False}
-                # 如果昨天缺 pub_date，用今天RSS补齐
-                if not today_records[key].get("pub_date"):
+                if not today_records[key].get("pub_date") and pub_date:
                     today_records[key]["pub_date"] = pub_date
                     today_records[key]["published_str"] = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
+                if use_special:
+                    special_taken += 1
                 continue
 
             abstract = ""
             abstract_source = ""
 
-            # ✅ Cell：Chem/Joule/OneEarth/Matter 一律 RSS description 抓摘要（沿用你之前的做法）
+            # ✅ Cell：Chem/Joule/OneEarth/Matter RSS description 抓摘要
             if is_cellpress_inpress_any(source_title, link):
                 abstract = clean_html_text(desc_html)
                 abstract_source = "rss_cell"
@@ -596,8 +598,7 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                     abstract = abs_txt
                     abstract_source = "rss_oup"
 
-            # ✅ ScienceDirect：明确不从 RSS 抽摘要（abstract 继续留空，后续走 API）
-            # elif sd_feed: pass
+            # ✅ ScienceDirect：仍不从 RSS 抽摘要（留空，后续走 API）
 
             must_have_abstract = key in prev_no_abs_recent3_keys
 
@@ -605,13 +606,19 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "title": title,
                 "link": link,
                 "source": source_title,
-                "published_str": pub_date.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "published_str": pub_date.strftime("%Y-%m-%d %H:%M:%S %Z") if pub_date else "",
                 "pub_date": pub_date,
                 "doi": doi,
                 "abstract": (abstract or "").strip(),
                 "abstract_source": (abstract_source or "").strip(),
                 "must_have_abstract": must_have_abstract,
             }
+
+            if use_special:
+                special_taken += 1
+
+        if use_special:
+            print(f"  ✅ 特殊源实际收录：{special_taken}/{special_limit} 条（通过标题过滤/去重后可能少于limit）")
 
     return today_records
 
@@ -643,7 +650,6 @@ def build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records):
 # ================== 摘要补全 ==================
 
 def enrich_with_html_then_api(records: list[dict]):
-    # HTML 阶段（仅 Nature/RSC），CI 下也能跑（headless）
     need_html = any(
         (("nature.com" in (r.get("link","").lower())) or ("rsc.org" in (r.get("link","").lower())) or ("pubs.rsc.org" in (r.get("link","").lower())))
         and not (r.get("abstract") or "").strip()
@@ -677,7 +683,6 @@ def enrich_with_html_then_api(records: list[dict]):
 
             browser.close()
 
-    # API 阶段（Crossref / S2 / OpenAlex / PubMed）
     print("\n🔧 API阶段：补全剩余摘要...")
     for r in records:
         if (r.get("abstract") or "").strip():
@@ -701,7 +706,6 @@ def export_records(today_records: dict):
     df = pd.DataFrame(list(today_records.values()))
     df["pub_date"] = pd.to_datetime(df["pub_date"], utc=True, errors="coerce")
 
-    # 统一空值：杜绝 nan
     for col in ["abstract", "abstract_source", "doi", "title", "link", "source", "published_str"]:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str)
@@ -718,21 +722,20 @@ def main():
     print(f"▶ 目标日期(UTC)：{sorted(TARGET_DATES)}")
     print(f"▶ 昨日CSV：{YESTERDAY_CSV}")
     print(f"▶ 今日输出：{TODAY_CSV}")
+    print("▶ ScienceDirect 特殊源限制：")
+    for k, v in SD_SPECIAL_LIMITS.items():
+        print(f"   - {k} -> latest {v}")
 
     prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys = load_yesterday_cache(YESTERDAY_CSV)
 
-    # 今日RSS
     today_records = collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys)
 
-    # 搬运昨日（2天内且有摘要）
     carry_over_prev_with_abstract(today_records, prev_by_key, prev_has_abs_keys)
 
-    # 对今日记录补摘要
     records_list = list(today_records.values())
     enrich_with_html_then_api(records_list)
     today_records = {record_key(r.get("doi",""), r.get("link","")): r for r in records_list}
 
-    # 重试：昨日3天内无摘要且今日RSS未出现
     retry_records = build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records)
     if retry_records:
         enrich_with_html_then_api(retry_records)
@@ -744,7 +747,6 @@ def main():
                 added += 1
         print(f"✅ 重试成功加入今日：{added} 条（失败的不加入）")
 
-    # 必须有摘要但仍无摘要 -> 丢弃
     drop = [k for k, r in today_records.items() if r.get("must_have_abstract") and not (r.get("abstract") or "").strip()]
     for k in drop:
         today_records.pop(k, None)
