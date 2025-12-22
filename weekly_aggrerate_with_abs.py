@@ -82,7 +82,7 @@ def aggregate_rolling7_dedupe_by_link():
             files.append(f)
         d += timedelta(days=1)
 
-    out = WEEKLY_DIR / f"news_with_abstract_{end_date.strftime('%Y-%m-%d')}.csv"
+    out = WEEKLY_DIR / f"weekly_news_with_abstract_{end_date.strftime('%Y-%m-%d')}.csv"
     empty_cols = ["title", "link", "published", "source", "pub_date", "doi", "abstract", "abstract_source"]
 
     if not files:
