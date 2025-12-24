@@ -2,7 +2,7 @@ name: Weekly CSV to Word (DOCX)
 
 on:
   schedule:
-    - cron: "50 3 * * 1"   # 周一 UTC 02:55（比你周汇总 02:50 晚 5 分钟）
+    - cron: "55 3 * * 1"   # 周一 UTC 02:55（比你周汇总 02:50 晚 5 分钟）
   workflow_dispatch: {}
 
 permissions:
