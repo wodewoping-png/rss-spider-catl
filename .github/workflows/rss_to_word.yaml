@@ -1,0 +1,53 @@
+  run-weekly-aggregate-with-abs:
+    # 每周一 02:50 的 cron 或手动触发都跑
+    if: github.event.schedule == '50 2 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Print UTC time
+        run: date -u
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+          pip install python-docx
+
+      # 如果 weekly 里也可能用到 playwright（比如你周汇总也想补摘要），保留安装最省心
+      - name: Install Playwright browsers (Chromium)
+        run: python -m playwright install --with-deps chromium
+
+      - name: Weekly aggregate with abstracts (UTC)
+        run: python weekly_aggrerate_with_abs.py
+        env:
+          PLAYWRIGHT_HEADLESS: "1"
+
+      - name: Convert latest weekly CSV to Word (DOCX)
+        run: python best_csv_to_word.py
+
+      - name: Commit weekly results (rebase-safe)
+        run: |
+          set -e
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add output/weekly/*.csv output/weekly/*.docx || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: weekly RSS aggregate with abstracts + docx (UTC $(date -u +'%Y-%m-%d'))"
+          git fetch origin main
+          git pull --rebase origin main
+          git push origin HEAD:main
