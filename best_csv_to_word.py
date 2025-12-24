@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Convert a CSV (title, link, published, source, pub_date, doi, abstract, ...)
-into a nicely formatted Word document (.docx).
+Pick the latest weekly CSV in output/weekly named like:
+  news_with_abstract_2025-12-22.csv
+and generate a Word file with the SAME base name:
+  news_with_abstract_2025-12-22.docx
+saved back to output/weekly/
 
-Enhancements in this version:
-1) Convert "digit-only lines" inside abstract into subscript in Word.
-   Example:
-       with Zn
-           2
-           ⁺-imidazole ...
-   -> Zn₂⁺-imidazole ...
-
-2) Remove notes for must_have_abstract=False (actually: never output must_have_abstract at all unless it's TRUE-ish)
+Dependencies:
+    pip install python-docx
 """
 
 import csv
@@ -26,40 +22,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 
-INPUT_CSV = "news_with_abstract_2025-12-22.csv"
-OUTPUT_DOCX = "news_with_abstract.docx"
-TITLE = "Tech Tracking Digest"
-
-
-def strip_leading_abstract(text: str) -> str:
-    """
-    Remove leading 'Abstract' (case-insensitive) from the beginning of abstract.
-    Examples removed:
-      Abstract
-      Abstract:
-      ABSTRACT –
-      Abstract—
-      Abstract.
-    """
-    if not text:
-        return text
-
-    s = text.lstrip()
-
-    # Regex: start of string + "abstract" + optional punctuation
-    s = re.sub(
-        r'^(abstract)\s*[:.\-–—]*\s*',
-        '',
-        s,
-        flags=re.IGNORECASE
-    )
-    return s
-
 # ----------------------------
 # Helpers: hyperlink + styling
 # ----------------------------
 def add_hyperlink(paragraph, url: str, text: str, color_hex="1155CC", underline=True):
-    """Add a clickable hyperlink to a paragraph in python-docx."""
     if not url:
         paragraph.add_run(text)
         return
@@ -99,15 +65,13 @@ def set_doc_default_style(doc: Document, font_name="Calibri", font_size_pt=11):
     style = doc.styles["Normal"]
     style.font.name = font_name
     style.font.size = Pt(font_size_pt)
-    # Chinese font fallback
     style._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft YaHei")
 
 
 def add_divider_line(doc: Document):
     p = doc.add_paragraph()
-    p_format = p.paragraph_format
-    p_format.space_before = Pt(6)
-    p_format.space_after = Pt(6)
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(6)
     run = p.add_run("—" * 70)
     run.font.size = Pt(9)
 
@@ -126,36 +90,38 @@ def doi_to_url(doi: str) -> str:
 
 
 def normalize_datetime_str(s: str) -> str:
-    s = (s or "").strip()
-    return s
+    return (s or "").strip()
 
 
 def is_truthy_flag(s: str) -> bool:
-    """Interpret CSV bool-like strings."""
     s = (s or "").strip().lower()
     return s in {"true", "1", "yes", "y", "t"}
 
 
 # ----------------------------
-# Abstract processing
+# Abstract cleanup + subscript
 # ----------------------------
+def strip_leading_abstract(text: str) -> str:
+    """Remove leading 'Abstract' (case-insensitive) at the very beginning."""
+    if not text:
+        return text
+    s = text.lstrip()
+    s = re.sub(r"^(abstract)\s*[:.\-–—]*\s*", "", s, flags=re.IGNORECASE)
+    return s
+
+
 def abstract_to_runs(abstract: str):
     """
-    Convert abstract text into a list of (text, is_subscript) chunks.
-
-    Rule: Any line that becomes digits-only after strip() will be subscript.
-    Everything else becomes normal text. We also collapse line breaks into spaces
-    (to avoid weird forced line wrapping from RSS HTML extraction).
+    Convert abstract into chunks (text, is_subscript).
+    Rule: any line that becomes digits-only after strip() -> subscript.
+    Collapses line breaks into spaces.
     """
     if not abstract:
         return [("(empty)", False)]
 
-    # 🔹 删除开头的 "Abstract"
     abstract = strip_leading_abstract(abstract)
 
     text = abstract.replace("\r\n", "\n").replace("\r", "\n")
-
-    # Split by lines and classify
     lines = text.split("\n")
 
     chunks = []
@@ -164,39 +130,27 @@ def abstract_to_runs(abstract: str):
     for line in lines:
         s = line.strip()
         if s == "":
-            # Treat blank lines as a space boundary, but don't spam spaces
             pending_space = True
             continue
 
-        # If we previously saw a blank line, ensure a space separation
         if pending_space and chunks:
             chunks.append((" ", False))
             pending_space = False
 
-        # If this line is purely digits: subscript it
         if s.isdigit():
-            # Usually this digit should attach to previous token (e.g., "Zn" + "2")
-            # So we do NOT force leading space here; just add directly.
-            chunks.append((s, True))
+            chunks.append((s, True))  # attach directly as subscript
         else:
-            # For normal text lines: if previous chunk is normal text and doesn't end with a space,
-            # add a space before appending, to collapse line breaks into readable text.
             if chunks:
                 prev_text, prev_sub = chunks[-1]
-                if not prev_sub and not prev_text.endswith(" "):
-                    # If previous ended with hyphen or slash etc., you might NOT want a space,
-                    # but for safety: only skip space if prev ends with "--/" (common joiners).
-                    if prev_text and prev_text[-1] not in {"-", "-", "/", "−"}:
+                if not prev_sub and prev_text and not prev_text.endswith(" "):
+                    if prev_text[-1] not in {"-", "−", "/"}:
                         chunks.append((" ", False))
             chunks.append((s, False))
 
-    # Post-clean: remove redundant multiple spaces
+    # de-dup spaces
     cleaned = []
     for t, sub in chunks:
-        if not cleaned:
-            cleaned.append((t, sub))
-            continue
-        if t == " " and cleaned[-1][0] == " ":
+        if cleaned and t == " " and cleaned[-1][0] == " ":
             continue
         cleaned.append((t, sub))
 
@@ -204,23 +158,67 @@ def abstract_to_runs(abstract: str):
 
 
 def add_abstract_with_subscripts(paragraph, abstract: str):
-    """Write abstract into a paragraph, converting digit-only lines into subscript runs."""
-    chunks = abstract_to_runs(abstract)
-    for t, is_sub in chunks:
+    for t, is_sub in abstract_to_runs(abstract):
         run = paragraph.add_run(t)
         if is_sub:
             run.font.subscript = True
 
 
 # ----------------------------
+# CSV picker (prefix + date + mtime tie-break)
+# ----------------------------
+def _extract_date_from_name(filename: str):
+    """
+    Expect formats like:
+      news_with_abstract_2025-12-22.csv
+    Also tolerates 20251222 or 2025_12_22.
+    Returns datetime.date or None.
+    """
+    stem = Path(filename).stem
+    m = re.search(r"(\d{4})[-_]?(\d{2})[-_]?(\d{2})", stem)
+    if not m:
+        return None
+    y, mo, d = map(int, m.groups())
+    try:
+        return datetime(y, mo, d).date()
+    except ValueError:
+        return None
+
+
+def pick_latest_weekly_csv(folder="output/weekly", prefix="news_with_abstract_") -> Path:
+    """
+    1) filter by startswith(prefix) and .csv
+    2) pick newest by embedded date; tie-breaker by mtime
+    3) if no embedded date, fallback to newest mtime
+    """
+    folder = Path(folder)
+    if not folder.exists():
+        raise FileNotFoundError(f"Folder not found: {folder.resolve()}")
+
+    candidates = [p for p in folder.glob("*.csv") if p.name.startswith(prefix)]
+    if not candidates:
+        raise FileNotFoundError(f"No CSV starting with '{prefix}' in {folder.resolve()}")
+
+    with_dates = []
+    without_dates = []
+    for p in candidates:
+        d = _extract_date_from_name(p.name)
+        if d is not None:
+            with_dates.append((d, p))
+        else:
+            without_dates.append(p)
+
+    if with_dates:
+        with_dates.sort(key=lambda x: (x[0], x[1].stat().st_mtime), reverse=True)
+        return with_dates[0][1]
+
+    return max(without_dates, key=lambda p: p.stat().st_mtime)
+
+
+# ----------------------------
 # Main conversion
 # ----------------------------
-def csv_to_word(
-    input_csv: str,
-    output_docx: str,
-    report_title: str = "Literature Digest",
-    encoding: str = "utf-8-sig",
-):
+def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literature Digest", encoding: str = "utf-8-sig"):
     input_path = Path(input_csv)
     if not input_path.exists():
         raise FileNotFoundError(f"CSV not found: {input_path.resolve()}")
@@ -267,47 +265,42 @@ def csv_to_word(
         abstract_source = safe_get(row, "abstract_source")
         must_have_abstract = safe_get(row, "must_have_abstract")
 
-        # Record header: [#] Title (hyperlink)
+        # Record header
         p = doc.add_paragraph()
-        p_format = p.paragraph_format
-        p_format.space_before = Pt(8)
-        p_format.space_after = Pt(4)
-        p_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p.paragraph_format.space_before = Pt(8)
+        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
-        num_run = p.add_run(f"[{idx}] ")
-        num_run.bold = True
-
+        p.add_run(f"[{idx}] ").bold = True
         if link:
             add_hyperlink(p, link, title or "(no title)")
         else:
-            t_run = p.add_run(title or "(no title)")
-            t_run.bold = True
+            p.add_run(title or "(no title)").bold = True
 
-        # Meta info
+        # Meta
         meta = doc.add_paragraph()
-        meta_format = meta.paragraph_format
-        meta_format.space_before = Pt(0)
-        meta_format.space_after = Pt(6)
-        meta_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        meta.paragraph_format.space_before = Pt(0)
+        meta.paragraph_format.space_after = Pt(6)
+        meta.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
-        meta_run = meta.add_run("Source: ")
-        meta_run.bold = True
+        mr = meta.add_run("Source: ")
+        mr.bold = True
         meta.add_run(source or "-")
 
         meta.add_run("    ")
-
-        meta_run = meta.add_run("Pub date: ")
-        meta_run.bold = True
+        mr = meta.add_run("Pub date: ")
+        mr.bold = True
         meta.add_run(normalize_datetime_str(pub_date) or "-")
 
         if doi:
             meta.add_run("    ")
-            meta_run = meta.add_run("DOI: ")
-            meta_run.bold = True
+            mr = meta.add_run("DOI: ")
+            mr.bold = True
             add_hyperlink(meta, doi_to_url(doi), doi)
 
-        # Notes: keep abstract_source if present
-        # MUST: remove must_have_abstract=False (and generally don't show it unless TRUE-ish)
+        # Notes:
+        # - keep abstract_source if present
+        # - do NOT output must_have_abstract=False; only show it if True-ish
         extra_bits = []
         if abstract_source:
             extra_bits.append(f"abstract_source={abstract_source}")
@@ -318,29 +311,35 @@ def csv_to_word(
             extra = doc.add_paragraph()
             extra.paragraph_format.space_before = Pt(0)
             extra.paragraph_format.space_after = Pt(6)
-            extra_run = extra.add_run("Notes: ")
-            extra_run.bold = True
+            er = extra.add_run("Notes: ")
+            er.bold = True
             extra.add_run("; ".join(extra_bits))
 
         # Abstract
         abs_p = doc.add_paragraph()
-        abs_p_format = abs_p.paragraph_format
-        abs_p_format.space_before = Pt(0)
-        abs_p_format.space_after = Pt(10)
-        abs_p_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        abs_p_format.line_spacing = 1.15
+        abs_p.paragraph_format.space_before = Pt(0)
+        abs_p.paragraph_format.space_after = Pt(10)
+        abs_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        abs_p.paragraph_format.line_spacing = 1.15
 
-        abs_label = abs_p.add_run("Abstract: ")
-        abs_label.bold = True
-
-        # Here: digit-only lines -> subscript
+        abs_p.add_run("Abstract: ").bold = True
         add_abstract_with_subscripts(abs_p, abstract)
 
-        # Divider
         if idx != len(rows):
             add_divider_line(doc)
 
     doc.save(output_docx)
 
-csv_to_word(INPUT_CSV, OUTPUT_DOCX, report_title=TITLE)
-print(f"Done -> {OUTPUT_DOCX}")
+
+if __name__ == "__main__":
+    weekly_dir = Path("output/weekly")
+    csv_path = pick_latest_weekly_csv(folder=str(weekly_dir), prefix="news_with_abstract_")
+
+    # Output .docx in the SAME folder with same base name:
+    docx_path = csv_path.with_suffix(".docx")
+
+    TITLE = "Tech Tracking Digest"
+    csv_to_word(str(csv_path), str(docx_path), report_title=TITLE)
+
+    print(f"Picked CSV:  {csv_path}")
+    print(f"Wrote DOCX: {docx_path}")
