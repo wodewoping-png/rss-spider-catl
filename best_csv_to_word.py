@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Pick the latest weekly CSV in output/weekly named like:
-  news_with_abstract_2025-12-22.csv
+  weekly_news_with_abstract_2025-12-22.csv
 and generate a Word file with the SAME base name:
-  news_with_abstract_2025-12-22.docx
+  weekly_news_with_abstract_2025-12-22.docx
 saved back to output/weekly/
 
 Dependencies:
@@ -170,7 +170,7 @@ def add_abstract_with_subscripts(paragraph, abstract: str):
 def _extract_date_from_name(filename: str):
     """
     Expect formats like:
-      news_with_abstract_2025-12-22.csv
+      weekly_news_with_abstract_2025-12-22.csv
     Also tolerates 20251222 or 2025_12_22.
     Returns datetime.date or None.
     """
@@ -185,7 +185,7 @@ def _extract_date_from_name(filename: str):
         return None
 
 
-def pick_latest_weekly_csv(folder="output/weekly", prefix="news_with_abstract_") -> Path:
+def pick_latest_weekly_csv(folder="output/weekly", prefix="weekly_news_with_abstract_") -> Path:
     """
     1) filter by startswith(prefix) and .csv
     2) pick newest by embedded date; tie-breaker by mtime
@@ -333,7 +333,7 @@ def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literatur
 
 if __name__ == "__main__":
     weekly_dir = Path("output/weekly")
-    csv_path = pick_latest_weekly_csv(folder=str(weekly_dir), prefix="news_with_abstract_")
+    csv_path = pick_latest_weekly_csv(folder=str(weekly_dir), prefix="weekly_news_with_abstract_")
 
     # Output .docx in the SAME folder with same base name:
     docx_path = csv_path.with_suffix(".docx")
@@ -343,3 +343,4 @@ if __name__ == "__main__":
 
     print(f"Picked CSV:  {csv_path}")
     print(f"Wrote DOCX: {docx_path}")
+
