@@ -1,4 +1,4 @@
-# spider_abstract_1216.py
+# spider_abstract_1216_wiley_datecheck.py
 import os
 import re
 import time
@@ -257,6 +257,21 @@ def within_days(pub_dt: datetime, days: int) -> bool:
         pub_dt = pub_dt.replace(tzinfo=timezone.utc)
     return (today_utc - pub_dt.date()).days <= days
 
+def in_target_dates(pub_dt: datetime | None) -> bool:
+    if not pub_dt:
+        return False
+    if pub_dt.tzinfo is None:
+        pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+    return pub_dt.date() in TARGET_DATES
+
+# ================== Wiley 识别（用于日期校验） ==================
+
+def is_wiley_record(source_title: str, link: str, doi: str) -> bool:
+    ll = (link or "").lower()
+    src = (source_title or "").lower()
+    d = (doi or "").lower()
+    return ("onlinelibrary.wiley.com" in ll) or ("wiley" in src) or d.startswith("10.1002/")
+
 # ================== Publisher识别 + RSS抽摘要 ==================
 
 def extract_oup_abstract_from_rss(desc_html: str) -> str:
@@ -289,7 +304,30 @@ def is_acs_energy_letters(source_title: str, link: str) -> bool:
     ll = (link or "").lower()
     return ("acs energy letters" in src) or ("acsenergylett" in ll)
 
-# ================== API 摘要：Crossref / S2 / OpenAlex / PubMed ==================
+# ================== API 摘要 & 日期：Crossref / S2 / OpenAlex / PubMed ==================
+
+def _crossref_pick_date(msg: dict) -> datetime | None:
+    def parse_parts(obj):
+        if not isinstance(obj, dict):
+            return None
+        parts = obj.get("date-parts")
+        if not parts or not isinstance(parts, list) or not parts[0]:
+            return None
+        ymd = parts[0]
+        try:
+            y = int(ymd[0])
+            m = int(ymd[1]) if len(ymd) >= 2 else 1
+            d = int(ymd[2]) if len(ymd) >= 3 else 1
+            return datetime(y, m, d, tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    # 优先级：online > print > issued > created
+    for k in ("published-online", "published-print", "issued", "created"):
+        dt = parse_parts(msg.get(k))
+        if dt:
+            return dt
+    return None
 
 def query_crossref_abstract(doi: str) -> dict:
     url = f"https://api.crossref.org/works/{doi}"
@@ -302,10 +340,13 @@ def query_crossref_abstract(doi: str) -> dict:
         msg = resp.json().get("message", {})
     except Exception:
         return {}
+
     abstract = (msg.get("abstract", "") or "").strip()
     if abstract:
         abstract = re.sub(r"<[^>]+>", "", abstract).strip()
-    return {"abstract": abstract, "source": "crossref"}
+
+    pub_dt = _crossref_pick_date(msg)
+    return {"abstract": abstract, "source": "crossref", "canonical_pub_date": pub_dt}
 
 def query_semanticscholar_abstract(doi: str) -> dict:
     url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}"
@@ -350,6 +391,7 @@ def query_openalex_abstract(doi: str) -> dict:
     return {"abstract": (abstract or "").strip(), "source": "openalex"}
 
 def query_pubmed_abstract(doi: str) -> dict:
+    # 1) DOI -> PMID
     esearch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     esearch_params = {
         "db": "pubmed",
@@ -371,6 +413,7 @@ def query_pubmed_abstract(doi: str) -> dict:
     except Exception:
         return {}
 
+    # 2) fetch XML
     efetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
     efetch_params = {
         "db": "pubmed",
@@ -392,6 +435,7 @@ def query_pubmed_abstract(doi: str) -> dict:
     if article is None:
         return {}
 
+    # abstract
     abstract = ""
     abs_list = article.findall("Abstract/AbstractText")
     if abs_list:
@@ -402,7 +446,37 @@ def query_pubmed_abstract(doi: str) -> dict:
                 parts.append(text)
         abstract = "\n".join(parts).strip()
 
-    return {"abstract": abstract, "source": "pubmed"}
+    # canonical date: prefer Electronic ArticleDate
+    pub_dt = None
+    for ad in root.findall(".//PubmedArticle/MedlineCitation/Article/ArticleDate"):
+        dtype = (ad.get("DateType") or "").lower()
+        if dtype == "electronic":
+            y = ad.findtext("Year") or ""
+            m = ad.findtext("Month") or "1"
+            d = ad.findtext("Day") or "1"
+            try:
+                pub_dt = datetime(int(y), int(m), int(d), tzinfo=timezone.utc)
+                break
+            except Exception:
+                pass
+
+    # fallback: JournalIssue PubDate
+    if not pub_dt:
+        pd_el = root.find(".//PubmedArticle/MedlineCitation/Article/Journal/JournalIssue/PubDate")
+        if pd_el is not None:
+            y = pd_el.findtext("Year")
+            m = pd_el.findtext("Month") or "1"
+            d = pd_el.findtext("Day") or "1"
+            if y:
+                try:
+                    mm = m
+                    if isinstance(mm, str) and mm.isalpha():
+                        mm = MONTHS.get(mm.lower(), 1)
+                    pub_dt = datetime(int(y), int(mm), int(d), tzinfo=timezone.utc)
+                except Exception:
+                    pass
+
+    return {"abstract": abstract, "source": "pubmed", "canonical_pub_date": pub_dt}
 
 def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]:
     if not doi:
@@ -521,6 +595,9 @@ def load_yesterday_cache(path: Path):
             "abstract": abstract,
             "abstract_source": str(row.get("abstract_source", "") or ""),
             "must_have_abstract": False,
+            "pub_date_source": str(row.get("pub_date_source", "") or ""),
+            "rss_pub_date": str(row.get("rss_pub_date", "") or ""),
+            "rss_published_str": str(row.get("rss_published_str", "") or ""),
         }
         prev_by_key[key] = rec
 
@@ -564,26 +641,33 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             if is_sd_special:
                 if special_taken >= special_limit:
                     break
-
-                # pub_date / published_str 直接写“抓取日期的前一天（UTC 00:00）”
                 pub_date = SD_ANCHOR_DT
                 published_str = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-            # ========== B) 普通源：按昨天+前天过滤 ==========
+                link = entry.get("link") or ""
+                doi = extract_doi_from_url(link)
+
+            # ========== B) 普通源：按昨天+前天过滤（但 Wiley 放行，后面校验过滤） ==========
             else:
                 pub_date = get_entry_pub_date(entry)
-                if not pub_date or pub_date.date() not in TARGET_DATES:
-                    continue
+                link = entry.get("link") or ""
+                doi = extract_doi_from_url(link)
+
+                # ✅ 非Wiley：维持原逻辑过滤
+                if not is_wiley_record(source_title, link, doi):
+                    if not pub_date or pub_date.date() not in TARGET_DATES:
+                        continue
+                else:
+                    # ✅ Wiley：先收录，后面用 Crossref/PubMed 校验并过滤
+                    if not pub_date:
+                        pub_date = TODAY_ANCHOR_DT  # 占位
                 published_str = pub_date.strftime("%Y-%m-%d %H:%M:%S %Z")
 
             title = get_entry_title(entry)
             if should_drop_by_title(title):
                 continue
 
-            link = entry.get("link") or ""
             desc_html = entry.get("summary") or entry.get("description") or ""
-
-            doi = extract_doi_from_url(link)
             key = record_key(doi, link)
 
             # 昨天已有摘要 -> 直接复用
@@ -612,8 +696,6 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                     abstract = abs_txt
                     abstract_source = "rss_oup"
 
-            # ✅ ScienceDirect：不从 RSS 抽摘要（留空，后续走 API）
-
             must_have_abstract = key in prev_no_abs_recent3_keys
 
             today_records[key] = {
@@ -626,6 +708,9 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "abstract": (abstract or "").strip(),
                 "abstract_source": (abstract_source or "").strip(),
                 "must_have_abstract": must_have_abstract,
+                "pub_date_source": "",
+                "rss_pub_date": "",
+                "rss_published_str": "",
             }
 
             if is_sd_special:
@@ -661,7 +746,7 @@ def build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records):
     print(f"✅ 重试列表（昨日3天内无摘要 & 今日RSS未出现）：{len(retry)} 条")
     return retry
 
-# ================== 摘要补全 ==================
+# ================== 摘要补全（HTML + API） + Wiley 日期校验 ==================
 
 def enrich_with_html_then_api(records: list[dict]):
     need_html = any(
@@ -697,13 +782,62 @@ def enrich_with_html_then_api(records: list[dict]):
 
             browser.close()
 
-    print("\n🔧 API阶段：补全剩余摘要...")
+    # ✅ 缓存，避免同 DOI 重复打
+    crossref_cache: dict[str, dict] = {}
+    pubmed_cache: dict[str, dict] = {}
+
+    print("\n🔧 API阶段：补全剩余摘要 + Wiley日期校验（Crossref优先；无日期再查PubMed）...")
     for r in records:
-        if (r.get("abstract") or "").strip():
-            continue
         doi = (r.get("doi") or "").strip()
         if not doi:
             continue
+
+        # ✅ Wiley：每条都做 Crossref 校验；Crossref没日期再查 PubMed
+        if is_wiley_record(r.get("source",""), r.get("link",""), doi):
+            if not r.get("rss_pub_date"):
+                r["rss_pub_date"] = r.get("pub_date")
+            if not r.get("rss_published_str"):
+                r["rss_published_str"] = r.get("published_str","")
+
+            # Crossref
+            if doi in crossref_cache:
+                info = crossref_cache[doi]
+            else:
+                info = query_crossref_abstract(doi)
+                crossref_cache[doi] = info
+
+            canonical_dt = info.get("canonical_pub_date")
+            if canonical_dt:
+                r["pub_date"] = canonical_dt
+                r["published_str"] = canonical_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                r["pub_date_source"] = "crossref"
+            else:
+                # PubMed fallback
+                if doi in pubmed_cache:
+                    info2 = pubmed_cache[doi]
+                else:
+                    info2 = query_pubmed_abstract(doi)
+                    pubmed_cache[doi] = info2
+
+                dt2 = info2.get("canonical_pub_date")
+                if dt2:
+                    r["pub_date"] = dt2
+                    r["published_str"] = dt2.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    r["pub_date_source"] = "pubmed"
+                else:
+                    r["pub_date_source"] = "unverified"
+
+            # 顺便用 Crossref 的 abstract（如果有且你还没抽到）
+            if not (r.get("abstract") or "").strip():
+                abs_txt = (info.get("abstract") or "").strip()
+                if abs_txt:
+                    r["abstract"] = abs_txt
+                    r["abstract_source"] = "crossref"
+
+        # 原有：补全剩余摘要（Wiley/非Wiley都适用）
+        if (r.get("abstract") or "").strip():
+            continue
+
         aggressive = is_acs_energy_letters(r.get("source",""), r.get("link",""))
         abs_txt, src = get_abstract_via_apis(doi, aggressive=aggressive)
         if abs_txt:
@@ -720,9 +854,12 @@ def export_records(today_records: dict):
     df = pd.DataFrame(list(today_records.values()))
     df["pub_date"] = pd.to_datetime(df["pub_date"], utc=True, errors="coerce")
 
-    for col in ["abstract", "abstract_source", "doi", "title", "link", "source", "published_str"]:
+    for col in ["abstract", "abstract_source", "doi", "title", "link", "source", "published_str",
+                "pub_date_source", "rss_pub_date", "rss_published_str"]:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str)
+        else:
+            df[col] = ""
 
     df = df.sort_values(by="pub_date")
     df.to_csv(TODAY_CSV, index=False, encoding="utf-8-sig")
@@ -731,7 +868,7 @@ def export_records(today_records: dict):
 # ================== 主流程 ==================
 
 def main():
-    print("▶ spider_abstract_1216.py 启动")
+    print("▶ spider_abstract_1216_wiley_datecheck.py 启动")
     print(f"▶ CI={IS_CI}, HEADLESS={HEADLESS}, CHANNEL='{BROWSER_CHANNEL or 'playwright-chromium'}'")
     print(f"▶ 目标日期(UTC)：{sorted(TARGET_DATES)}")
     print(f"▶ 昨日CSV：{YESTERDAY_CSV}")
@@ -739,6 +876,7 @@ def main():
     print("▶ ScienceDirect 特殊源限制 + pub_date写抓取日期的前一天：")
     for k, v in SD_SPECIAL_LIMITS.items():
         print(f"   - {k} -> latest {v}, pub_date={SD_ANCHOR_DATE} (UTC)")
+    print("▶ Wiley：每条都做 Crossref 日期校验；Crossref 无日期再查 PubMed；最终只保留 pub_date 落在目标日期的")
 
     prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys = load_yesterday_cache(YESTERDAY_CSV)
 
@@ -750,6 +888,22 @@ def main():
     enrich_with_html_then_api(records_list)
     today_records = {record_key(r.get("doi",""), r.get("link","")): r for r in records_list}
 
+    # ✅ Wiley：根据校验后的 pub_date 再过滤一次（只留 yesterday+day_before）
+    drop_keys = []
+    for k, r in today_records.items():
+        doi = (r.get("doi") or "").strip()
+        if not doi:
+            continue
+        if is_wiley_record(r.get("source",""), r.get("link",""), doi):
+            if not in_target_dates(r.get("pub_date")):
+                drop_keys.append(k)
+
+    for k in drop_keys:
+        today_records.pop(k, None)
+
+    if drop_keys:
+        print(f"🧹 Wiley校验后不在目标日期({sorted(TARGET_DATES)})：丢弃 {len(drop_keys)} 条")
+
     retry_records = build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records)
     if retry_records:
         enrich_with_html_then_api(retry_records)
@@ -757,9 +911,14 @@ def main():
         for r in retry_records:
             if (r.get("abstract") or "").strip():
                 k = record_key(r.get("doi",""), r.get("link",""))
+                # ✅ 重试加入前，若是 Wiley 也需要通过目标日期
+                doi = (r.get("doi") or "").strip()
+                if doi and is_wiley_record(r.get("source",""), r.get("link",""), doi):
+                    if not in_target_dates(r.get("pub_date")):
+                        continue
                 today_records[k] = r
                 added += 1
-        print(f"✅ 重试成功加入今日：{added} 条（失败的不加入）")
+        print(f"✅ 重试成功加入今日：{added} 条（失败的不加入 / Wiley不在目标日期不加入）")
 
     drop = [k for k, r in today_records.items() if r.get("must_have_abstract") and not (r.get("abstract") or "").strip()]
     for k in drop:
