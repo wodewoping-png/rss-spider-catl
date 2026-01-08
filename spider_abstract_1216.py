@@ -890,19 +890,42 @@ def export_records(today_records: dict):
         return
 
     df = pd.DataFrame(list(today_records.values()))
-    df["pub_date"] = pd.to_datetime(df["pub_date"], utc=True, errors="coerce")
-    df["rss_pub_date"] = pd.to_datetime(df.get("rss_pub_date", ""), utc=True, errors="coerce")
 
-    for col in ["abstract", "abstract_source", "doi", "title", "link", "source", "published_str",
-                "pub_date_source", "rss_published_str", "wiley_date_diff_days"]:
-        if col in df.columns:
-            df[col] = df[col].fillna("").astype(str)
-        else:
-            df[col] = ""
+    # 统一 pub_date 格式（仍然在内部处理）
+    df["pub_date"] = pd.to_datetime(df.get("pub_date", ""), utc=True, errors="coerce")
 
+    # ✅ 只保留你要的列（缺了就补空）
+    keep_cols = [
+        "title",
+        "link",
+        "source",
+        "published_str",
+        "pub_date",
+        "doi",
+        "abstract",
+        "abstract_source",
+        "must_have_abstract",
+    ]
+    for c in keep_cols:
+        if c not in df.columns:
+            df[c] = ""
+
+    # 类型/空值整理
+    for col in ["title", "link", "source", "published_str", "doi", "abstract", "abstract_source"]:
+        df[col] = df[col].fillna("").astype(str)
+
+    # must_have_abstract 保持 bool/0/1 都行，这里统一成 int 更稳（可选）
+    if "must_have_abstract" in df.columns:
+        df["must_have_abstract"] = df["must_have_abstract"].fillna(False).astype(bool).astype(int)
+
+    # pub_date 排序（和你之前一致）
     df = df.sort_values(by="pub_date")
+
+    # ✅ 最终导出只写这 9 列
+    df = df[keep_cols]
     df.to_csv(TODAY_CSV, index=False, encoding="utf-8-sig")
     print(f"\n✅ 导出：{len(df)} 条 -> {TODAY_CSV}")
+
 
 # ================== 主流程 ==================
 
