@@ -17,14 +17,12 @@ https://www.nature.com/natrevmats.rss
 https://academic.oup.com/rss/site_5332/advanceAccess_3198.xml
 https://www.nature.com/nchem.rss
 http://feeds.rsc.org/rss/ee
-https://onlinelibrary.wiley.com/action/showFeed?jc=15213773&type=etoc&feed=rss
 https://advanced.onlinelibrary.wiley.com/feed/16146840/most-recent
 https://advanced.onlinelibrary.wiley.com/feed/15214095/most-recent
 https://www.pnas.org/action/showFeed?ui=0&mi=eymic2&type=search&feed=rss&query=%2526access%253Don%2526content%253DarticlesChapters%2526publication%253Dpnas%2526sortBy%253DEarliest%2526target%253Ddefault
 https://www.cell.com/joule/inpress.rss
 https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv
 https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science
-https://onlinelibrary.wiley.com/feed/15213773/most-recent
 https://pubs.acs.org/action/showFeed?type=axatoc&feed=rss&jc=jacsat
 https://www.nature.com/natelectron.rss
 https://www.nature.com/nrct.rss
@@ -32,3 +30,4 @@ https://www.cell.com/oneear/inpress.rss
 https://www.cell.com/matter/inpress.rss
 https://rss.sciencedirect.com/publication/science/03062619
 https://rss.sciencedirect.com/publication/science/03014215
+
