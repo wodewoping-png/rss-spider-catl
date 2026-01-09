@@ -1,25 +1,118 @@
 # -*- coding: utf-8 -*-
 """
-Pick the latest weekly CSV in output/weekly named like:
+Pick the latest weekly CSV in output/weekly named like either:
   weekly_news_with_abstract_2025-12-22.csv
-and generate a Word file with the SAME base name:
-  weekly_news_with_abstract_2025-12-22.docx
-saved back to output/weekly/
+  news_with_abstract_2025-12-22.csv
 
-Dependencies:
-    pip install python-docx
+Then:
+  1) Translate title + (optional) abstract with Marian:
+       Helsinki-NLP/opus-mt-en-zh
+     - If abstract exists: translate title + abstract
+     - If abstract empty: translate title only
+  2) Write translated CSV (same folder):
+       *_translated.csv
+  3) Generate bilingual Word:
+       *_translated.docx
+     - Main: Chinese (if available)
+     - Secondary: English original
+
+Dependencies (put in requirements.txt):
+    python-docx
+    pandas
+    tqdm
+    transformers
+    sentencepiece
+    torch
+    sacremoses (recommended)
 """
 
-import csv
 import re
+import csv
 from pathlib import Path
 from datetime import datetime
+
+import pandas as pd
+from tqdm import tqdm
 
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+
+
+# ============================
+# Marian translation config
+# ============================
+MODEL_NAME = "Helsinki-NLP/opus-mt-en-zh"
+
+
+def build_translator():
+    tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+    # GitHub Actions runner is CPU
+    return pipeline("translation", model=model, tokenizer=tok, device=-1)
+
+
+def translate_batch(translator, texts, batch_size=8, max_length=512, label=""):
+    """Translate a list of strings with progress prints (so logs show activity)."""
+    out = []
+    total = len(texts)
+    for i in range(0, total, batch_size):
+        batch = texts[i : i + batch_size]
+        res = translator(batch, max_length=max_length)
+        out.extend([x["translation_text"] for x in res])
+        print(f"[translate:{label}] {min(i+batch_size, total)}/{total}")
+    return out
+
+
+def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensure columns: title_zh, abstract_zh.
+    Rules:
+      - title: translate if title non-empty and title_zh empty
+      - abstract: translate if abstract non-empty and abstract_zh empty
+    """
+    # normalize source columns
+    for col in ["title", "abstract"]:
+        if col not in df.columns:
+            df[col] = ""
+        df[col] = df[col].fillna("").astype(str)
+
+    # ensure target columns
+    if "title_zh" not in df.columns:
+        df["title_zh"] = ""
+    if "abstract_zh" not in df.columns:
+        df["abstract_zh"] = ""
+
+    df["title_zh"] = df["title_zh"].fillna("").astype(str)
+    df["abstract_zh"] = df["abstract_zh"].fillna("").astype(str)
+
+    translator = build_translator()
+
+    # --- titles ---
+    need_title_idx = df.index[
+        (df["title"].str.strip() != "") & (df["title_zh"].str.strip() == "")
+    ].tolist()
+    if need_title_idx:
+        titles = df.loc[need_title_idx, "title"].tolist()
+        zh_titles = translate_batch(translator, titles, batch_size=8, max_length=128, label="title")
+        df.loc[need_title_idx, "title_zh"] = zh_titles
+
+    # --- abstracts (only when abstract exists) ---
+    need_abs_idx = df.index[
+        (df["abstract"].str.strip() != "") & (df["abstract_zh"].str.strip() == "")
+    ].tolist()
+    if need_abs_idx:
+        abstracts = df.loc[need_abs_idx, "abstract"].tolist()
+        # If you want faster on CPU, you can truncate long abstracts:
+        # abstracts = [a[:2000] if len(a) > 2000 else a for a in abstracts]
+        zh_abs = translate_batch(translator, abstracts, batch_size=8, max_length=512, label="abstract")
+        df.loc[need_abs_idx, "abstract_zh"] = zh_abs
+
+    return df
 
 
 # ----------------------------
@@ -138,7 +231,7 @@ def abstract_to_runs(abstract: str):
             pending_space = False
 
         if s.isdigit():
-            chunks.append((s, True))  # attach directly as subscript
+            chunks.append((s, True))
         else:
             if chunks:
                 prev_text, prev_sub = chunks[-1]
@@ -147,13 +240,11 @@ def abstract_to_runs(abstract: str):
                         chunks.append((" ", False))
             chunks.append((s, False))
 
-    # de-dup spaces
     cleaned = []
     for t, sub in chunks:
         if cleaned and t == " " and cleaned[-1][0] == " ":
             continue
         cleaned.append((t, sub))
-
     return cleaned
 
 
@@ -168,12 +259,6 @@ def add_abstract_with_subscripts(paragraph, abstract: str):
 # CSV picker (prefix + date + mtime tie-break)
 # ----------------------------
 def _extract_date_from_name(filename: str):
-    """
-    Expect formats like:
-      weekly_news_with_abstract_2025-12-22.csv
-    Also tolerates 20251222 or 2025_12_22.
-    Returns datetime.date or None.
-    """
     stem = Path(filename).stem
     m = re.search(r"(\d{4})[-_]?(\d{2})[-_]?(\d{2})", stem)
     if not m:
@@ -185,19 +270,27 @@ def _extract_date_from_name(filename: str):
         return None
 
 
-def pick_latest_weekly_csv(folder="output/weekly", prefix="weekly_news_with_abstract_") -> Path:
+def pick_latest_weekly_csv(folder="output/weekly") -> Path:
     """
-    1) filter by startswith(prefix) and .csv
-    2) pick newest by embedded date; tie-breaker by mtime
-    3) if no embedded date, fallback to newest mtime
+    Pick latest weekly CSV from output/weekly, supporting both prefixes:
+      - weekly_news_with_abstract_
+      - news_with_abstract_
+    Excludes already translated files (*_translated.csv).
     """
     folder = Path(folder)
     if not folder.exists():
         raise FileNotFoundError(f"Folder not found: {folder.resolve()}")
 
-    candidates = [p for p in folder.glob("*.csv") if p.name.startswith(prefix)]
+    prefixes = ["weekly_news_with_abstract_", "news_with_abstract_"]
+    candidates = []
+    for p in folder.glob("*.csv"):
+        if p.name.endswith("_translated.csv"):
+            continue
+        if any(p.name.startswith(pref) for pref in prefixes):
+            candidates.append(p)
+
     if not candidates:
-        raise FileNotFoundError(f"No CSV starting with '{prefix}' in {folder.resolve()}")
+        raise FileNotFoundError(f"No weekly CSV found in {folder.resolve()} (expected prefixes {prefixes})")
 
     with_dates = []
     without_dates = []
@@ -216,13 +309,9 @@ def pick_latest_weekly_csv(folder="output/weekly", prefix="weekly_news_with_abst
 
 
 # ----------------------------
-# Main conversion
+# Word generation (bilingual)
 # ----------------------------
-def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literature Digest", encoding: str = "utf-8-sig"):
-    input_path = Path(input_csv)
-    if not input_path.exists():
-        raise FileNotFoundError(f"CSV not found: {input_path.resolve()}")
-
+def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str = "Tech Tracking Digest"):
     doc = Document()
     set_doc_default_style(doc, font_name="Calibri", font_size_pt=11)
 
@@ -245,37 +334,53 @@ def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literatur
     sub_p.paragraph_format.space_after = Pt(14)
     sub_p.add_run(datetime.now().strftime("%Y-%m-%d")).italic = True
 
-    # Read CSV
-    with open(input_path, "r", encoding=encoding, newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-
-    if not rows:
+    if df.empty:
         doc.add_paragraph("No records found in CSV.")
         doc.save(output_docx)
         return
 
-    for idx, row in enumerate(rows, start=1):
-        title = safe_get(row, "title")
-        link = safe_get(row, "link")
-        source = safe_get(row, "source")
-        pub_date = safe_get(row, "pub_date") or safe_get(row, "published")
-        doi = safe_get(row, "doi")
-        abstract = safe_get(row, "abstract")
-        abstract_source = safe_get(row, "abstract_source")
-        must_have_abstract = safe_get(row, "must_have_abstract")
+    # ensure expected columns exist
+    for c in ["title", "link", "source", "pub_date", "published", "doi",
+              "abstract", "abstract_source", "must_have_abstract", "title_zh", "abstract_zh"]:
+        if c not in df.columns:
+            df[c] = ""
 
-        # Record header
+    records = df.to_dict(orient="records")
+
+    for idx, row in enumerate(records, start=1):
+        title_en = (row.get("title") or "").strip()
+        title_zh = (row.get("title_zh") or "").strip()
+        link = (row.get("link") or "").strip()
+        source = (row.get("source") or "").strip()
+        pub_date = ((row.get("pub_date") or "").strip() or (row.get("published") or "").strip())
+        doi = (row.get("doi") or "").strip()
+        abstract_en = (row.get("abstract") or "").strip()
+        abstract_zh = (row.get("abstract_zh") or "").strip()
+        abstract_source = (row.get("abstract_source") or "").strip()
+        must_have_abstract = (row.get("must_have_abstract") or "").strip()
+
+        # Header line (main title = ZH if exists else EN)
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.space_after = Pt(2)
         p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
         p.add_run(f"[{idx}] ").bold = True
+        main_title = title_zh or title_en or "(no title)"
         if link:
-            add_hyperlink(p, link, title or "(no title)")
+            add_hyperlink(p, link, main_title)
         else:
-            p.add_run(title or "(no title)").bold = True
+            p.add_run(main_title).bold = True
+
+        # Optional EN title line if both exist
+        if title_en and title_zh and title_en.strip() != title_zh.strip():
+            p2 = doc.add_paragraph()
+            p2.paragraph_format.space_before = Pt(0)
+            p2.paragraph_format.space_after = Pt(4)
+            p2.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            r2 = p2.add_run(f"EN: {title_en}")
+            r2.italic = True
+            r2.font.size = Pt(10)
 
         # Meta
         meta = doc.add_paragraph()
@@ -298,9 +403,6 @@ def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literatur
             mr.bold = True
             add_hyperlink(meta, doi_to_url(doi), doi)
 
-        # Notes:
-        # - keep abstract_source if present
-        # - do NOT output must_have_abstract=False; only show it if True-ish
         extra_bits = []
         if abstract_source:
             extra_bits.append(f"abstract_source={abstract_source}")
@@ -315,17 +417,25 @@ def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literatur
             er.bold = True
             extra.add_run("; ".join(extra_bits))
 
-        # Abstract
-        abs_p = doc.add_paragraph()
-        abs_p.paragraph_format.space_before = Pt(0)
-        abs_p.paragraph_format.space_after = Pt(10)
-        abs_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        abs_p.paragraph_format.line_spacing = 1.15
+        # Abstract section
+        # If no abstract at all, we still show (empty)
+        abs_zh_p = doc.add_paragraph()
+        abs_zh_p.paragraph_format.space_before = Pt(0)
+        abs_zh_p.paragraph_format.space_after = Pt(4)
+        abs_zh_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        abs_zh_p.paragraph_format.line_spacing = 1.15
+        abs_zh_p.add_run("摘要（ZH）: ").bold = True
+        add_abstract_with_subscripts(abs_zh_p, abstract_zh if abstract_zh else "(empty)")
 
-        abs_p.add_run("Abstract: ").bold = True
-        add_abstract_with_subscripts(abs_p, abstract)
+        abs_en_p = doc.add_paragraph()
+        abs_en_p.paragraph_format.space_before = Pt(0)
+        abs_en_p.paragraph_format.space_after = Pt(10)
+        abs_en_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        abs_en_p.paragraph_format.line_spacing = 1.15
+        abs_en_p.add_run("Abstract (EN): ").bold = True
+        add_abstract_with_subscripts(abs_en_p, abstract_en if abstract_en else "(empty)")
 
-        if idx != len(rows):
+        if idx != len(records):
             add_divider_line(doc)
 
     doc.save(output_docx)
@@ -333,14 +443,23 @@ def csv_to_word(input_csv: str, output_docx: str, report_title: str = "Literatur
 
 if __name__ == "__main__":
     weekly_dir = Path("output/weekly")
-    csv_path = pick_latest_weekly_csv(folder=str(weekly_dir), prefix="weekly_news_with_abstract_")
+    csv_path = pick_latest_weekly_csv(folder=str(weekly_dir))
 
-    # Output .docx in the SAME folder with same base name:
-    docx_path = csv_path.with_suffix(".docx")
+    print(f"Picked CSV: {csv_path}")
 
+    df = pd.read_csv(csv_path, encoding="utf-8-sig", keep_default_na=False)
+
+    # Translate (no text cache, model cache handled by GitHub Actions cache)
+    df = enrich_translation(df)
+
+    # Write translated CSV
+    translated_csv_path = csv_path.with_name(csv_path.stem + "_translated.csv")
+    translated_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(translated_csv_path, index=False, encoding="utf-8-sig")
+    print(f"Wrote translated CSV: {translated_csv_path}")
+
+    # Write bilingual DOCX
+    docx_path = translated_csv_path.with_suffix(".docx")
     TITLE = "Tech Tracking Digest"
-    csv_to_word(str(csv_path), str(docx_path), report_title=TITLE)
-
-    print(f"Picked CSV:  {csv_path}")
+    df_to_word_bilingual(df, str(docx_path), report_title=TITLE)
     print(f"Wrote DOCX: {docx_path}")
-
