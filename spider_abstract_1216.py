@@ -882,19 +882,14 @@ def enrich_with_html_then_api(records: list[dict]):
             r["abstract"] = abs_txt.strip()
             r["abstract_source"] = src
 
-# ================== 导出 ==================
-
 def export_records(today_records: dict):
     if not today_records:
         print("⚠️ 没有记录可导出。")
         return
 
-    df = pd.DataFrame(list(today_records.values()))
+    df_all = pd.DataFrame(list(today_records.values()))
 
-    # 统一 pub_date 格式（仍然在内部处理）
-    df["pub_date"] = pd.to_datetime(df.get("pub_date", ""), utc=True, errors="coerce")
-
-    # ✅ 只保留你要的列（缺了就补空）
+    # 只允许出现在 CSV 中的列（白名单）
     keep_cols = [
         "title",
         "link",
@@ -906,23 +901,32 @@ def export_records(today_records: dict):
         "abstract_source",
         "must_have_abstract",
     ]
+
+    # ⚠️ 关键：从 df_all 中“选列”生成新 DataFrame
+    df = df_all.loc[:, [c for c in keep_cols if c in df_all.columns]]
+
+    # 防御性补齐缺失列（顺序也在这里统一）
     for c in keep_cols:
         if c not in df.columns:
             df[c] = ""
 
-    # 类型/空值整理
+    # 类型整理
+    df["pub_date"] = pd.to_datetime(df["pub_date"], utc=True, errors="coerce")
+
     for col in ["title", "link", "source", "published_str", "doi", "abstract", "abstract_source"]:
         df[col] = df[col].fillna("").astype(str)
 
-    # must_have_abstract 保持 bool/0/1 都行，这里统一成 int 更稳（可选）
     if "must_have_abstract" in df.columns:
-        df["must_have_abstract"] = df["must_have_abstract"].fillna(False).astype(bool).astype(int)
+        df["must_have_abstract"] = (
+            df["must_have_abstract"].fillna(False).astype(bool).astype(int)
+        )
 
-    # pub_date 排序（和你之前一致）
+    # 排序
     df = df.sort_values(by="pub_date")
 
-    # ✅ 最终导出只写这 9 列
+    # 再次强制列顺序 & 列集合
     df = df[keep_cols]
+
     df.to_csv(TODAY_CSV, index=False, encoding="utf-8-sig")
     print(f"\n✅ 导出：{len(df)} 条 -> {TODAY_CSV}")
 
