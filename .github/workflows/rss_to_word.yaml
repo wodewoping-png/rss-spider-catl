@@ -27,6 +27,7 @@ jobs:
         with:
           python-version: "3.11"
 
+      # Cache model files so next run won't re-download Marian
       - name: Cache HuggingFace models
         uses: actions/cache@v4
         with:
