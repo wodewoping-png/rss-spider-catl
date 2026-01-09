@@ -16,23 +16,27 @@ Then:
      - Main: Chinese (if available)
      - Secondary: English original
 
-Dependencies (put in requirements.txt):
-    python-docx
-    pandas
-    tqdm
-    transformers
-    sentencepiece
-    torch
-    sacremoses (recommended)
+Notes:
+  - NO translation text cache (per your request)
+  - Model caching should be handled by GitHub Actions cache (YAML provided)
+  - To keep runtime stable on CPU, abstracts are truncated before translation.
+
+Recommended requirements (see YAML):
+  numpy<2
+  python-docx
+  pandas
+  tqdm
+  transformers
+  sentencepiece
+  torch
+  sacremoses
 """
 
 import re
-import csv
 from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
-from tqdm import tqdm
 
 from docx import Document
 from docx.shared import Pt, Inches
@@ -44,20 +48,28 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
 
 # ============================
-# Marian translation config
+# Translation config
 # ============================
 MODEL_NAME = "Helsinki-NLP/opus-mt-en-zh"
+
+# CPU 运行建议：摘要过长会非常慢 & 容易触发 max_length 警告
+MAX_ABSTRACT_CHARS_TO_TRANSLATE = 2000  # 你可改 1500/2500
+BATCH_SIZE_TITLE = 8
+BATCH_SIZE_ABSTRACT = 4  # 摘要更长，batch 小一点更稳
+MAX_LENGTH_TITLE = 128
+MAX_LENGTH_ABSTRACT = 512
 
 
 def build_translator():
     tok = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
-    # GitHub Actions runner is CPU
-    return pipeline("translation", model=model, tokenizer=tok, device=-1)
+    return pipeline("translation", model=model, tokenizer=tok, device=-1)  # CPU
 
 
 def translate_batch(translator, texts, batch_size=8, max_length=512, label=""):
-    """Translate a list of strings with progress prints (so logs show activity)."""
+    """
+    Translate list of strings, printing progress so GitHub logs show it's working.
+    """
     out = []
     total = len(texts)
     for i in range(0, total, batch_size):
@@ -75,13 +87,11 @@ def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
       - title: translate if title non-empty and title_zh empty
       - abstract: translate if abstract non-empty and abstract_zh empty
     """
-    # normalize source columns
     for col in ["title", "abstract"]:
         if col not in df.columns:
             df[col] = ""
         df[col] = df[col].fillna("").astype(str)
 
-    # ensure target columns
     if "title_zh" not in df.columns:
         df["title_zh"] = ""
     if "abstract_zh" not in df.columns:
@@ -92,25 +102,46 @@ def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
 
     translator = build_translator()
 
-    # --- titles ---
+    # ---- Title translation (always if missing) ----
     need_title_idx = df.index[
         (df["title"].str.strip() != "") & (df["title_zh"].str.strip() == "")
     ].tolist()
+
     if need_title_idx:
         titles = df.loc[need_title_idx, "title"].tolist()
-        zh_titles = translate_batch(translator, titles, batch_size=8, max_length=128, label="title")
+        zh_titles = translate_batch(
+            translator, titles,
+            batch_size=BATCH_SIZE_TITLE,
+            max_length=MAX_LENGTH_TITLE,
+            label="title"
+        )
         df.loc[need_title_idx, "title_zh"] = zh_titles
+    else:
+        print("[translate:title] nothing to translate")
 
-    # --- abstracts (only when abstract exists) ---
+    # ---- Abstract translation (only when abstract exists) ----
     need_abs_idx = df.index[
         (df["abstract"].str.strip() != "") & (df["abstract_zh"].str.strip() == "")
     ].tolist()
+
     if need_abs_idx:
         abstracts = df.loc[need_abs_idx, "abstract"].tolist()
-        # If you want faster on CPU, you can truncate long abstracts:
-        # abstracts = [a[:2000] if len(a) > 2000 else a for a in abstracts]
-        zh_abs = translate_batch(translator, abstracts, batch_size=8, max_length=512, label="abstract")
+
+        # ✅ 핵심：提前截断，避免正文级文本拖慢 CPU
+        abstracts = [
+            a[:MAX_ABSTRACT_CHARS_TO_TRANSLATE] if len(a) > MAX_ABSTRACT_CHARS_TO_TRANSLATE else a
+            for a in abstracts
+        ]
+
+        zh_abs = translate_batch(
+            translator, abstracts,
+            batch_size=BATCH_SIZE_ABSTRACT,
+            max_length=MAX_LENGTH_ABSTRACT,
+            label="abstract"
+        )
         df.loc[need_abs_idx, "abstract_zh"] = zh_abs
+    else:
+        print("[translate:abstract] nothing to translate")
 
     return df
 
@@ -256,7 +287,7 @@ def add_abstract_with_subscripts(paragraph, abstract: str):
 
 
 # ----------------------------
-# CSV picker (prefix + date + mtime tie-break)
+# CSV picker
 # ----------------------------
 def _extract_date_from_name(filename: str):
     stem = Path(filename).stem
@@ -315,7 +346,6 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
     doc = Document()
     set_doc_default_style(doc, font_name="Calibri", font_size_pt=11)
 
-    # Page setup
     section = doc.sections[0]
     section.left_margin = Inches(0.9)
     section.right_margin = Inches(0.9)
@@ -339,7 +369,6 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
         doc.save(output_docx)
         return
 
-    # ensure expected columns exist
     for c in ["title", "link", "source", "pub_date", "published", "doi",
               "abstract", "abstract_source", "must_have_abstract", "title_zh", "abstract_zh"]:
         if c not in df.columns:
@@ -359,7 +388,7 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
         abstract_source = (row.get("abstract_source") or "").strip()
         must_have_abstract = (row.get("must_have_abstract") or "").strip()
 
-        # Header line (main title = ZH if exists else EN)
+        # Header
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(8)
         p.paragraph_format.space_after = Pt(2)
@@ -372,7 +401,7 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
         else:
             p.add_run(main_title).bold = True
 
-        # Optional EN title line if both exist
+        # EN title (optional)
         if title_en and title_zh and title_en.strip() != title_zh.strip():
             p2 = doc.add_paragraph()
             p2.paragraph_format.space_before = Pt(0)
@@ -417,8 +446,7 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
             er.bold = True
             extra.add_run("; ".join(extra_bits))
 
-        # Abstract section
-        # If no abstract at all, we still show (empty)
+        # Abstract (ZH then EN)
         abs_zh_p = doc.add_paragraph()
         abs_zh_p.paragraph_format.space_before = Pt(0)
         abs_zh_p.paragraph_format.space_after = Pt(4)
@@ -449,7 +477,7 @@ if __name__ == "__main__":
 
     df = pd.read_csv(csv_path, encoding="utf-8-sig", keep_default_na=False)
 
-    # Translate (no text cache, model cache handled by GitHub Actions cache)
+    # Translate (no text cache; model cache handled by GitHub Actions cache)
     df = enrich_translation(df)
 
     # Write translated CSV
