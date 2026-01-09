@@ -27,29 +27,37 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/torch
+          key: hf-cache-${{ runner.os }}-v1
+
       - name: Install deps
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
-          pip install python-docx
 
-      - name: Convert latest weekly CSV to Word
+      - name: Convert latest weekly CSV to translated CSV + bilingual Word
         run: |
           python best_csv_to_word.py
 
-      - name: Commit docx (rebase-safe)
+      - name: Commit outputs (rebase-safe)
         run: |
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add output/weekly/*.docx || true
+          # commit both translated CSV and DOCX
+          git add output/weekly/*.docx output/weekly/*.csv || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          git commit -m "chore: weekly docx (UTC $(date -u +'%Y-%m-%d'))"
+          git commit -m "chore: weekly translated csv+docx (UTC $(date -u +'%Y-%m-%d'))"
           git fetch origin main
           git pull --rebase origin main
           git push origin HEAD:main
