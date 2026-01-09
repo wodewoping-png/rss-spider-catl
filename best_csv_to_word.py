@@ -1,26 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Weekly CSV -> translate (Marian) -> translated CSV -> bilingual DOCX
 
-Features:
-- Progress + ETA (titles/abstracts separately)
-- Abstract truncation before translation (CPU-friendly)
-- Only translate missing fields (title_zh/abstract_zh empty)
-- Output:
-    output/weekly/<base>_translated.csv
-    output/weekly/<base>_translated.docx
-
-Model:
-  Helsinki-NLP/opus-mt-en-zh
-
-Notes:
-- No caching of translation results beyond writing into translated CSV.
-- Model caching is handled by HF cache directory (YAML cache step recommended).
-"""
-
-import csv
+import os
 import re
 import time
+import threading
 from pathlib import Path
 from datetime import datetime
 
@@ -32,7 +15,14 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+# --- very early boot marker (so you know the script is running) ---
+print("[boot] best_csv_to_word.py started", flush=True)
+
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from transformers.utils import logging as hf_logging
+
+# Make transformers more talkative (helps during model loading)
+hf_logging.set_verbosity_info()
 
 
 # ============================
@@ -40,12 +30,11 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 # ============================
 MODEL_NAME = "Helsinki-NLP/opus-mt-en-zh"
 
-# ✅ 关键：控制翻译规模（CPU 上跑得动）
-MAX_ABSTRACT_CHARS_TO_TRANSLATE = 800   # 建议 600~1200；越小越快
-BATCH_SIZE_TITLE = 16                   # 标题短，batch 可大
-BATCH_SIZE_ABSTRACT = 2                 # 摘要长，batch 小更稳
+MAX_ABSTRACT_CHARS_TO_TRANSLATE = 800   # reduce for speed: 600~1000
+BATCH_SIZE_TITLE = 16
+BATCH_SIZE_ABSTRACT = 2
 MAX_LENGTH_TITLE = 128
-MAX_LENGTH_ABSTRACT = 256               # 512 会更慢；周报用 256 通常够
+MAX_LENGTH_ABSTRACT = 256
 
 
 # ============================
@@ -64,69 +53,88 @@ def _fmt_secs(s: float) -> str:
 
 
 def translate_with_progress(translator, texts, batch_size, max_length, label: str):
-    """
-    Translate list[str] with progress + ETA.
-    """
     total = len(texts)
     if total == 0:
-        print(f"[translate:{label}] nothing to translate")
+        print(f"[translate:{label}] nothing to translate", flush=True)
         return []
 
-    print(f"[translate:{label}] total={total}, batch_size={batch_size}, max_length={max_length}")
+    print(f"[translate:{label}] total={total}, batch_size={batch_size}, max_length={max_length}", flush=True)
     out = []
     start = time.time()
-    last_print = start
 
     for i in range(0, total, batch_size):
         batch = texts[i:i + batch_size]
 
-        # The actual translation call
         res = translator(batch, max_length=max_length)
         out.extend([x["translation_text"] for x in res])
 
         done = min(i + batch_size, total)
         now = time.time()
 
-        # Print every batch (so you always see progress in GitHub logs)
         elapsed = now - start
         rate = done / elapsed if elapsed > 0 else 0.0
         eta = (total - done) / rate if rate > 0 else 0.0
 
-        print(f"[translate:{label}] {done}/{total} | elapsed={_fmt_secs(elapsed)} | "
-              f"rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}")
-
-        last_print = now
+        print(
+            f"[translate:{label}] {done}/{total} | elapsed={_fmt_secs(elapsed)} | "
+            f"rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}",
+            flush=True
+        )
 
     return out
+
+
+# ============================
+# Heartbeat thread (shows liveness during long model download/load)
+# ============================
+def _start_heartbeat(tag: str, stop_event: threading.Event, interval_sec: int = 20):
+    start = time.time()
+
+    def _run():
+        while not stop_event.is_set():
+            elapsed = time.time() - start
+            print(f"[heartbeat:{tag}] still working... elapsed={_fmt_secs(elapsed)}", flush=True)
+            stop_event.wait(interval_sec)
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return t
 
 
 # ============================
 # Translator builder
 # ============================
 def build_translator():
-    print(f"[model] loading tokenizer+model: {MODEL_NAME}")
-    tok = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
-    print("[model] building pipeline (CPU)")
-    return pipeline(
-        "translation",
-        model=model,
-        tokenizer=tok,
-        device=-1,  # CPU
-        # Optional: silence the FutureWarning by setting it explicitly:
-        clean_up_tokenization_spaces=True
-    )
+    print(f"[model] preparing to load: {MODEL_NAME}", flush=True)
+
+    stop = threading.Event()
+    _start_heartbeat("model_load", stop, interval_sec=20)
+
+    try:
+        print("[model] loading tokenizer (may download on first run)...", flush=True)
+        tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+        print("[model] loading model (may download on first run)...", flush=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+
+        print("[model] building pipeline (CPU)...", flush=True)
+        translator = pipeline(
+            "translation",
+            model=model,
+            tokenizer=tok,
+            device=-1,
+            clean_up_tokenization_spaces=True
+        )
+        print("[model] pipeline ready", flush=True)
+        return translator
+    finally:
+        stop.set()
 
 
 # ============================
 # Data translation
 # ============================
 def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add/Fill title_zh and abstract_zh columns using Marian.
-    - Translate title if title_zh empty.
-    - Translate abstract if abstract exists and abstract_zh empty.
-    """
     for col in ["title", "abstract"]:
         if col not in df.columns:
             df[col] = ""
@@ -140,7 +148,6 @@ def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
     df["title_zh"] = df["title_zh"].fillna("").astype(str)
     df["abstract_zh"] = df["abstract_zh"].fillna("").astype(str)
 
-    # Determine what needs translation
     need_title_idx = df.index[
         (df["title"].str.strip() != "") & (df["title_zh"].str.strip() == "")
     ].tolist()
@@ -149,56 +156,45 @@ def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
         (df["abstract"].str.strip() != "") & (df["abstract_zh"].str.strip() == "")
     ].tolist()
 
-    print(f"[plan] titles to translate: {len(need_title_idx)}")
+    print(f"[plan] titles to translate: {len(need_title_idx)}", flush=True)
     print(f"[plan] abstracts to translate: {len(need_abs_idx)} "
-          f"(abstract truncation={MAX_ABSTRACT_CHARS_TO_TRANSLATE} chars)")
+          f"(truncate={MAX_ABSTRACT_CHARS_TO_TRANSLATE} chars)", flush=True)
 
     if not need_title_idx and not need_abs_idx:
-        print("[plan] nothing to translate, skip model load")
+        print("[plan] nothing to translate; skip model load", flush=True)
         return df
 
     translator = build_translator()
 
-    # ---- Titles ----
     if need_title_idx:
         titles = df.loc[need_title_idx, "title"].tolist()
         zh_titles = translate_with_progress(
-            translator,
-            titles,
-            batch_size=BATCH_SIZE_TITLE,
-            max_length=MAX_LENGTH_TITLE,
-            label="title"
+            translator, titles, BATCH_SIZE_TITLE, MAX_LENGTH_TITLE, "title"
         )
         df.loc[need_title_idx, "title_zh"] = zh_titles
 
-    # ---- Abstracts ----
     if need_abs_idx:
         abstracts = df.loc[need_abs_idx, "abstract"].tolist()
 
-        # ✅ truncate BEFORE translation to control runtime
+        # truncate BEFORE translation
         truncated = []
         for a in abstracts:
-            a = a or ""
-            a = a.strip()
+            a = (a or "").strip()
             if len(a) > MAX_ABSTRACT_CHARS_TO_TRANSLATE:
                 a = a[:MAX_ABSTRACT_CHARS_TO_TRANSLATE]
             truncated.append(a)
 
         zh_abs = translate_with_progress(
-            translator,
-            truncated,
-            batch_size=BATCH_SIZE_ABSTRACT,
-            max_length=MAX_LENGTH_ABSTRACT,
-            label="abstract"
+            translator, truncated, BATCH_SIZE_ABSTRACT, MAX_LENGTH_ABSTRACT, "abstract"
         )
         df.loc[need_abs_idx, "abstract_zh"] = zh_abs
 
     return df
 
 
-# ============================
-# Word helpers (same as yours + bilingual)
-# ============================
+# ----------------------------
+# Word helpers (bilingual)
+# ----------------------------
 def add_hyperlink(paragraph, url: str, text: str, color_hex="1155CC", underline=True):
     if not url:
         paragraph.add_run(text)
@@ -285,7 +281,6 @@ def abstract_to_runs(abstract: str):
         return [("(empty)", False)]
 
     abstract = strip_leading_abstract(abstract)
-
     text = abstract.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.split("\n")
 
@@ -327,9 +322,6 @@ def add_abstract_with_subscripts(paragraph, abstract: str):
             run.font.subscript = True
 
 
-# ============================
-# CSV picker
-# ============================
 def _extract_date_from_name(filename: str):
     stem = Path(filename).stem
     m = re.search(r"(\d{4})[-_]?(\d{2})[-_]?(\d{2})", stem)
@@ -343,12 +335,6 @@ def _extract_date_from_name(filename: str):
 
 
 def pick_latest_weekly_csv(folder="output/weekly") -> Path:
-    """
-    Support prefixes:
-      - weekly_news_with_abstract_
-      - news_with_abstract_
-    Excludes *_translated.csv
-    """
     folder = Path(folder)
     if not folder.exists():
         raise FileNotFoundError(f"Folder not found: {folder.resolve()}")
@@ -380,9 +366,6 @@ def pick_latest_weekly_csv(folder="output/weekly") -> Path:
     return max(without_dates, key=lambda p: p.stat().st_mtime)
 
 
-# ============================
-# DOCX generation (bilingual)
-# ============================
 def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str = "Tech Tracking Digest"):
     doc = Document()
     set_doc_default_style(doc, font_name="Calibri", font_size_pt=11)
@@ -393,7 +376,6 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
     section.top_margin = Inches(0.8)
     section.bottom_margin = Inches(0.8)
 
-    # Title
     title_p = doc.add_paragraph()
     title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r = title_p.add_run(report_title)
@@ -432,7 +414,6 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
         abstract_source = safe_get(row, "abstract_source")
         must_have_abstract = safe_get(row, "must_have_abstract")
 
-        # Header
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(8)
         p.paragraph_format.space_after = Pt(2)
@@ -445,21 +426,17 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
         else:
             p.add_run(main_title).bold = True
 
-        # EN title line if both exist
         if title_en and title_zh and title_en.strip() != title_zh.strip():
             p2 = doc.add_paragraph()
             p2.paragraph_format.space_before = Pt(0)
             p2.paragraph_format.space_after = Pt(4)
-            p2.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
             r2 = p2.add_run(f"EN: {title_en}")
             r2.italic = True
             r2.font.size = Pt(10)
 
-        # Meta
         meta = doc.add_paragraph()
         meta.paragraph_format.space_before = Pt(0)
         meta.paragraph_format.space_after = Pt(6)
-        meta.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
         mr = meta.add_run("Source: ")
         mr.bold = True
@@ -490,7 +467,6 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
             er.bold = True
             extra.add_run("; ".join(extra_bits))
 
-        # Abstract bilingual
         abs_zh_p = doc.add_paragraph()
         abs_zh_p.paragraph_format.space_before = Pt(0)
         abs_zh_p.paragraph_format.space_after = Pt(4)
@@ -513,26 +489,20 @@ def df_to_word_bilingual(df: pd.DataFrame, output_docx: str, report_title: str =
     doc.save(output_docx)
 
 
-# ============================
-# Main
-# ============================
 if __name__ == "__main__":
     weekly_dir = Path("output/weekly")
     csv_path = pick_latest_weekly_csv(folder=str(weekly_dir))
-    print(f"[io] Picked CSV: {csv_path}")
+    print(f"[io] Picked CSV: {csv_path}", flush=True)
 
     df = pd.read_csv(csv_path, encoding="utf-8-sig", keep_default_na=False)
+    print(f"[io] Loaded rows: {len(df)}", flush=True)
 
-    # Translate with progress + ETA
     df = enrich_translation(df)
 
-    # Write translated CSV
     translated_csv_path = csv_path.with_name(csv_path.stem + "_translated.csv")
     df.to_csv(translated_csv_path, index=False, encoding="utf-8-sig")
-    print(f"[io] Wrote translated CSV: {translated_csv_path}")
+    print(f"[io] Wrote translated CSV: {translated_csv_path}", flush=True)
 
-    # Write DOCX
     docx_path = translated_csv_path.with_suffix(".docx")
-    TITLE = "Tech Tracking Digest"
-    df_to_word_bilingual(df, str(docx_path), report_title=TITLE)
-    print(f"[io] Wrote DOCX: {docx_path}")
+    df_to_word_bilingual(df, str(docx_path), report_title="Tech Tracking Digest")
+    print(f"[io] Wrote DOCX: {docx_path}", flush=True)
