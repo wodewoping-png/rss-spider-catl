@@ -7,3 +7,11 @@ playwright
 bs4
 lxml
 python-docx
+transformers==4.44.2
+torch==2.1.2
+sentencepiece==0.2.0
+sacremoses==0.1.1
+tqdm==4.66.4
+python-docx==1.1.2
+
+
