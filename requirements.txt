@@ -6,7 +6,7 @@ chardet
 playwright
 bs4
 lxml
-python-docx
+numpy<2
 transformers==4.44.2
 torch==2.1.2
 sentencepiece==0.2.0
