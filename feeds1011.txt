@@ -29,3 +29,4 @@ https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv
 https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science
 https://onlinelibrary.wiley.com/feed/15213773/most-recent
 https://pubs.acs.org/action/showFeed?type=axatoc&feed=rss&jc=jacsat
+https://carbonherald.com/feed/
