@@ -3,7 +3,7 @@ name: RSS Spider + Weekly Aggregate with Abstracts
 on:
   schedule:
     - cron: "0 2 * * *"    # 每天 UTC 02:00 跑日抓取
-    - cron: "50 2 * * 1"   # 每周一 UTC 02:50 跑周汇总（错开50分钟）
+    - cron: "50 2 * * 5"   # 每周五 UTC 02:50 跑周汇总（错开50分钟）
   workflow_dispatch:
 
 permissions:
