@@ -3,7 +3,7 @@ name: RSS Spider
 on:
   schedule:
     - cron: "0 1 * * *"   # 每天 UTC 01:00 跑日抓取
-    - cron: "10 1 * * 1"  # 每周一 UTC 01:10 跑周汇总（错开10分钟）
+    - cron: "10 1 * * 5"  # 每周五 UTC 01:10 跑周汇总（错开10分钟）
   workflow_dispatch:
 
 permissions:
