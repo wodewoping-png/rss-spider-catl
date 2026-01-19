@@ -30,3 +30,15 @@ https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science
 https://onlinelibrary.wiley.com/feed/15213773/most-recent
 https://pubs.acs.org/action/showFeed?type=axatoc&feed=rss&jc=jacsat
 https://carbonherald.com/feed/
+https://www.electrive.com/category/battery-fuel-cell/feed/
+https://www.ess-news.com/category/projects-applications/feed/
+https://www.batteriesinternational.com/news-test/news/feed/
+https://www.pv-magazine.com/category/installations/commercial-industrial-pv/feed/
+https://rsshub.app/163/dy2/T1632726077385
+https://ammoniaenergy.org/articles/feed/
+https://www.h2-view.com/news/all-news/feed/
+https://hydrogentechworld.com/feed/
+https://batteriesnews.com/feed/
+https://about.bnef.com/feed/?post_type=insights&type=press
+https://www.technologyreview.com/topic/climate-change/feed/
+
