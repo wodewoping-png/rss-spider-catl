@@ -246,8 +246,12 @@ def add_divider_line(doc: Document):
     run.font.size = Pt(9)
 
 
-def safe_get(row: dict, key: str) -> str:
-    return (row.get(key) or "").strip()
+def safe_get(row, key):
+    val = row.get(key, "")
+    if val is None:
+        return ""
+    return str(val).strip()
+
 
 
 def doi_to_url(doi: str) -> str:
@@ -506,3 +510,4 @@ if __name__ == "__main__":
     docx_path = translated_csv_path.with_suffix(".docx")
     df_to_word_bilingual(df, str(docx_path), report_title="Tech Tracking Digest")
     print(f"[io] Wrote DOCX: {docx_path}", flush=True)
+
