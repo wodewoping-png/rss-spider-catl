@@ -65,7 +65,7 @@ jobs:
 
   run-weekly-aggregate-with-abs:
     # 每周一 02:50 的 cron 或手动触发都跑
-    if: github.event.schedule == '50 2 * * 1' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '50 2 * * 5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
