@@ -158,6 +158,9 @@ def parse_last_author_from_string(s: str) -> str:
     s = fix_mojibake(clean_html_text(str(s)))
     if not s:
         return ""
+    s = re.sub(r"^(author\(s\)|authors?)\s*:\s*", "", s, flags=re.IGNORECASE)
+    s = s.replace("，", ",")
+    s = s.replace(";", ",")
     s = re.sub(r"\s+and\s+", ", ", s, flags=re.IGNORECASE)
     s = s.replace("&", ",")
     s = s.replace(" et al.", "").replace(" et al", "")
@@ -166,7 +169,48 @@ def parse_last_author_from_string(s: str) -> str:
         return ""
     return parts[-1]
 
-def extract_last_author_from_entry(entry) -> str:
+def detect_publisher_bucket(source_title: str, link: str) -> str:
+    src = (source_title or "").lower()
+    ll = (link or "").lower()
+    if "sciencedirect.com" in ll or "rss.sciencedirect.com" in ll or "elsevier" in src:
+        return "sciencedirect"
+    if "acs" in src or "pubs.acs.org" in ll:
+        return "acs"
+    if "nature" in src or "nature.com" in ll:
+        return "nature"
+    if "wiley" in src or "onlinelibrary.wiley.com" in ll:
+        return "wiley"
+    if "rsc" in src or "pubs.rsc.org" in ll or "rsc.org" in ll:
+        return "rsc"
+    if "cell" in src or "cell.com" in ll:
+        return "cell"
+    if "science.org" in ll or src.strip() == "science":
+        return "science"
+    return "generic"
+
+def extract_sd_author_from_description(desc_html: str) -> str:
+    if not desc_html:
+        return ""
+    desc_txt = fix_mojibake(clean_html_text(desc_html))
+    if not desc_txt:
+        return ""
+    m = re.search(
+        r"author\(s\)\s*:\s*(.+?)(?:\s*(?:available online|doi\s*:|source\s*:|$))",
+        desc_txt,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return ""
+    return parse_last_author_from_string(m.group(1))
+
+def extract_last_author_from_entry(entry, source_title: str = "", link: str = "", desc_html: str = "") -> str:
+    publisher = detect_publisher_bucket(source_title, link)
+
+    if publisher == "sciencedirect":
+        sd_author = extract_sd_author_from_description(desc_html)
+        if sd_author:
+            return sd_author
+
     authors = entry.get("authors")
     if isinstance(authors, list) and authors:
         names = []
@@ -180,7 +224,7 @@ def extract_last_author_from_entry(entry) -> str:
                 if name:
                     names.append(name)
         if names:
-            return fix_mojibake(names[-1])
+            return parse_last_author_from_string(names[-1])
 
     author_detail = entry.get("author_detail")
     if isinstance(author_detail, dict):
@@ -188,14 +232,29 @@ def extract_last_author_from_entry(entry) -> str:
         if name:
             return fix_mojibake(name)
 
-    for key in ("dc_creator", "creator", "author"):
+    for key in ("dc_creator", "dc:creator", "creator", "author"):
         val = entry.get(key)
         if isinstance(val, list) and val:
-            if len(val) > 1:
-                return fix_mojibake(str(val[-1]).strip())
-            return parse_last_author_from_string(str(val[0]))
+            cleaned = [fix_mojibake(str(v).strip()) for v in val if str(v).strip()]
+            if not cleaned:
+                continue
+
+            if publisher in {"acs", "nature", "rsc"}:
+                return parse_last_author_from_string(cleaned[-1])
+
+            if publisher in {"wiley", "cell", "science"}:
+                return parse_last_author_from_string(cleaned[0])
+
+            if len(cleaned) > 1:
+                return parse_last_author_from_string(cleaned[-1])
+            return parse_last_author_from_string(cleaned[0])
         if isinstance(val, str) and val.strip():
             return parse_last_author_from_string(val)
+
+    if publisher == "sciencedirect":
+        sd_author = extract_sd_author_from_description(desc_html)
+        if sd_author:
+            return sd_author
 
     return ""
 
@@ -848,7 +907,12 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             if is_oup_nsr(source_title, link) or is_pnas(source_title, link):
                 author_needs_api = True
             else:
-                last_author = extract_last_author_from_entry(entry)
+                last_author = extract_last_author_from_entry(
+                    entry,
+                    source_title=source_title,
+                    link=link,
+                    desc_html=desc_html,
+                )
                 if last_author:
                     last_author_source = "rss"
                 else:
