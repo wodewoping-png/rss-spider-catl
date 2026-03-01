@@ -69,6 +69,9 @@ SD_SPECIAL_LIMITS = {
 }
 SD_SPECIAL_URLS = set(SD_SPECIAL_LIMITS.keys())
 
+# ✅ Debug：作者抓取路径日志
+DEBUG_AUTHOR = os.getenv("DEBUG_AUTHOR", "1") == "1"
+
 # ================== 正则与工具 ==================
 
 TAG_RE = re.compile(r"<[^>]+>")
@@ -101,6 +104,12 @@ OUP_ABS_RE = re.compile(
     flags=re.IGNORECASE | re.DOTALL
 )
 
+
+def _dbg_author(msg: str):
+    if DEBUG_AUTHOR:
+        print(msg)
+
+
 def clean_html_text(s: str) -> str:
     if not s:
         return ""
@@ -108,6 +117,7 @@ def clean_html_text(s: str) -> str:
     s = TAG_RE.sub("", s)
     s = re.sub(r"\s+", " ", s)
     return s.strip()
+
 
 def fix_mojibake(s: str) -> str:
     if not s:
@@ -125,11 +135,13 @@ def fix_mojibake(s: str) -> str:
         s = s.replace(k, v)
     return s
 
+
 def looks_generic(title: str) -> bool:
     t = (title or "").strip().lower()
     if not t:
         return True
     return t in GENERIC_TITLES or len(t) < 5
+
 
 def should_drop_by_title(title: str) -> bool:
     t = (title or "").strip().lower()
@@ -142,6 +154,7 @@ def should_drop_by_title(title: str) -> bool:
             return True
     return False
 
+
 def extract_alt_from_html(html: str) -> str | None:
     if not html:
         return None
@@ -151,6 +164,7 @@ def extract_alt_from_html(html: str) -> str | None:
     alt = clean_html_text(m.group("alt") or "")
     alt = fix_mojibake(alt)
     return alt or None
+
 
 def parse_last_author_from_string(s: str) -> str:
     if not s:
@@ -168,6 +182,7 @@ def parse_last_author_from_string(s: str) -> str:
     if not parts:
         return ""
     return parts[-1]
+
 
 def detect_publisher_bucket(source_title: str, link: str) -> str:
     src = (source_title or "").lower()
@@ -188,6 +203,7 @@ def detect_publisher_bucket(source_title: str, link: str) -> str:
         return "science"
     return "generic"
 
+
 def extract_sd_author_from_description(desc_html: str) -> str:
     if not desc_html:
         return ""
@@ -203,14 +219,18 @@ def extract_sd_author_from_description(desc_html: str) -> str:
         return ""
     return parse_last_author_from_string(m.group(1))
 
-def extract_last_author_from_entry(entry, source_title: str = "", link: str = "", desc_html: str = "") -> str:
+
+# ✅ 改动点2：creator list 统一取“最后一个人/最后一段”，并返回 trace（用于 debug）
+def extract_last_author_from_entry(entry, source_title: str = "", link: str = "", desc_html: str = "") -> tuple[str, str]:
     publisher = detect_publisher_bucket(source_title, link)
 
+    # A) ScienceDirect：从 description 里 Author(s): ... 解析
     if publisher == "sciencedirect":
         sd_author = extract_sd_author_from_description(desc_html)
         if sd_author:
-            return sd_author
+            return sd_author, "rss:sd_description"
 
+    # B) feedparser authors list
     authors = entry.get("authors")
     if isinstance(authors, list) and authors:
         names = []
@@ -224,39 +244,39 @@ def extract_last_author_from_entry(entry, source_title: str = "", link: str = ""
                 if name:
                     names.append(name)
         if names:
-            return parse_last_author_from_string(names[-1])
+            return parse_last_author_from_string(names[-1]), "rss:authors_list"
 
+    # C) author_detail
     author_detail = entry.get("author_detail")
     if isinstance(author_detail, dict):
         name = (author_detail.get("name") or "").strip()
         if name:
-            return fix_mojibake(name)
+            return fix_mojibake(name), "rss:author_detail"
 
+    # D) various creator-like keys
     for key in ("dc_creator", "dc:creator", "creator", "author"):
         val = entry.get(key)
+
+        # D1) list => ✅统一取最后一个（不再对 Wiley/Cell/Science 取第一个）
         if isinstance(val, list) and val:
             cleaned = [fix_mojibake(str(v).strip()) for v in val if str(v).strip()]
             if not cleaned:
                 continue
+            picked = cleaned[-1]
+            return parse_last_author_from_string(picked), f"rss:{key}_list_last"
 
-            if publisher in {"acs", "nature", "rsc"}:
-                return parse_last_author_from_string(cleaned[-1])
-
-            if publisher in {"wiley", "cell", "science"}:
-                return parse_last_author_from_string(cleaned[0])
-
-            if len(cleaned) > 1:
-                return parse_last_author_from_string(cleaned[-1])
-            return parse_last_author_from_string(cleaned[0])
+        # D2) string
         if isinstance(val, str) and val.strip():
-            return parse_last_author_from_string(val)
+            return parse_last_author_from_string(val), f"rss:{key}_str"
 
+    # E) ScienceDirect 再兜底一次
     if publisher == "sciencedirect":
         sd_author = extract_sd_author_from_description(desc_html)
         if sd_author:
-            return sd_author
+            return sd_author, "rss:sd_description_fallback"
 
-    return ""
+    return "", ""
+
 
 def get_entry_title(entry) -> str:
     title_from_feed = fix_mojibake(clean_html_text(entry.get("title", "")))
@@ -286,6 +306,7 @@ def get_entry_title(entry) -> str:
 
     return title_from_feed or (alt_candidates[0] if alt_candidates else "")
 
+
 def parse_date_strict(d: str):
     if not d:
         return None
@@ -294,6 +315,7 @@ def parse_date_strict(d: str):
         return ts.to_pydatetime()
     except Exception:
         return None
+
 
 def parse_available_online_date(description_html: str):
     if not description_html:
@@ -317,6 +339,7 @@ def parse_available_online_date(description_html: str):
     except Exception:
         return parse_date_strict(date_str)
 
+
 def get_entry_pub_date(entry):
     t = entry.get("published_parsed") or entry.get("updated_parsed")
     if t:
@@ -334,6 +357,7 @@ def get_entry_pub_date(entry):
 
     return dt
 
+
 def extract_doi_from_url(url: str) -> str:
     if not url:
         return ""
@@ -344,6 +368,7 @@ def extract_doi_from_url(url: str) -> str:
     if m2:
         return m2.group(0)
     return ""
+
 
 def extract_doi_from_entry(entry) -> str:
     for key in ("doi", "dc_identifier", "prism_doi", "dc:identifier", "id"):
@@ -359,17 +384,20 @@ def extract_doi_from_entry(entry) -> str:
                 return d
     return extract_doi_from_url(entry.get("link") or "")
 
+
 def normalize_link(url: str) -> str:
     if not url:
         return ""
     parts = urlsplit(url)
     return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
 
+
 def record_key(doi: str, link: str) -> str:
     d = (doi or "").strip().lower()
     if d:
         return f"doi:{d}"
     return f"url:{normalize_link(link).lower()}"
+
 
 def safe_get(url: str, params=None, headers=None):
     try:
@@ -382,12 +410,14 @@ def safe_get(url: str, params=None, headers=None):
         print(f"⚠️ 请求 {url} 失败: {e}")
         return None
 
+
 def within_days(pub_dt: datetime, days: int) -> bool:
     if not pub_dt:
         return False
     if pub_dt.tzinfo is None:
         pub_dt = pub_dt.replace(tzinfo=timezone.utc)
     return (today_utc - pub_dt.date()).days <= days
+
 
 def in_target_dates(pub_dt: datetime | None) -> bool:
     if not pub_dt:
@@ -396,6 +426,7 @@ def in_target_dates(pub_dt: datetime | None) -> bool:
         pub_dt = pub_dt.replace(tzinfo=timezone.utc)
     return pub_dt.date() in TARGET_DATES
 
+
 # ================== Wiley 识别（用于日期校验） ==================
 
 def is_wiley_record(source_title: str, link: str, doi: str) -> bool:
@@ -403,6 +434,7 @@ def is_wiley_record(source_title: str, link: str, doi: str) -> bool:
     src = (source_title or "").lower()
     d = (doi or "").lower()
     return ("onlinelibrary.wiley.com" in ll) or ("wiley" in src) or d.startswith("10.1002/")
+
 
 # ================== Publisher识别 + RSS抽摘要 ==================
 
@@ -414,7 +446,9 @@ def extract_oup_abstract_from_rss(desc_html: str) -> str:
         return ""
     return clean_html_text(m.group(1))
 
+
 CELL_INPRESS_JOURNALS = {"chem", "joule", "oneear", "matter"}
+
 
 def is_cellpress_inpress_any(source_title: str, link: str) -> bool:
     ll = (link or "").lower()
@@ -426,20 +460,24 @@ def is_cellpress_inpress_any(source_title: str, link: str) -> bool:
     j = m.group(1).strip().lower()
     return j in CELL_INPRESS_JOURNALS
 
+
 def is_oup_nsr(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
     ll = (link or "").lower()
     return ("national science review" in src) or ("academic.oup.com" in ll and "/nsr/" in ll)
+
 
 def is_pnas(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
     ll = (link or "").lower()
     return ("pnas" in src) or ("pnas.org" in ll)
 
+
 def is_acs_energy_letters(source_title: str, link: str) -> bool:
     src = (source_title or "").lower()
     ll = (link or "").lower()
     return ("acs energy letters" in src) or ("acsenergylett" in ll)
+
 
 # ================== API 摘要 & 日期：Crossref / S2 / OpenAlex / PubMed ==================
 
@@ -465,6 +503,7 @@ def _crossref_pick_date(msg: dict) -> datetime | None:
             return dt
     return None
 
+
 def _crossref_pick_last_author(msg: dict) -> str:
     authors = msg.get("author")
     if not isinstance(authors, list) or not authors:
@@ -479,6 +518,7 @@ def _crossref_pick_last_author(msg: dict) -> str:
         if name:
             return name
     return ""
+
 
 def query_crossref_info(doi: str) -> dict:
     """Crossref：返回 abstract + canonical_pub_date（若有）"""
@@ -506,6 +546,7 @@ def query_crossref_info(doi: str) -> dict:
         "last_author": last_author,
     }
 
+
 def query_semanticscholar_abstract(doi: str) -> dict:
     url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}"
     params = {"fields": "title,abstract,year,journal"}
@@ -519,6 +560,7 @@ def query_semanticscholar_abstract(doi: str) -> dict:
     except Exception:
         return {}
     return {"abstract": (data.get("abstract") or "").strip(), "source": "semanticscholar"}
+
 
 def _openalex_reconstruct_abstract(inv_idx: dict) -> str:
     if not isinstance(inv_idx, dict) or not inv_idx:
@@ -534,6 +576,7 @@ def _openalex_reconstruct_abstract(inv_idx: dict) -> str:
     pairs.sort(key=lambda x: x[0])
     return " ".join([w for _, w in pairs]).strip()
 
+
 def query_openalex_abstract(doi: str) -> dict:
     url = f"https://api.openalex.org/works/https://doi.org/{doi}"
     headers = {"User-Agent": f"ccus-bot (mailto:{NCBI_EMAIL})"}
@@ -547,6 +590,7 @@ def query_openalex_abstract(doi: str) -> dict:
         return {}
     abstract = _openalex_reconstruct_abstract(data.get("abstract_inverted_index") or {})
     return {"abstract": (abstract or "").strip(), "source": "openalex"}
+
 
 def query_openalex_last_author(doi: str) -> dict:
     url = f"https://api.openalex.org/works/https://doi.org/{doi}"
@@ -569,6 +613,7 @@ def query_openalex_last_author(doi: str) -> dict:
         name = (author.get("display_name") or "").strip()
     return {"last_author": name, "source": "openalex"}
 
+
 def query_semanticscholar_last_author(doi: str) -> dict:
     url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}"
     params = {"fields": "authors"}
@@ -589,6 +634,7 @@ def query_semanticscholar_last_author(doi: str) -> dict:
     if isinstance(last, dict):
         name = (last.get("name") or "").strip()
     return {"last_author": name, "source": "semanticscholar"}
+
 
 def get_last_author_via_apis(doi: str, crossref_cache: dict, openalex_cache: dict, s2_cache: dict) -> tuple[str, str]:
     if not doi:
@@ -619,6 +665,7 @@ def get_last_author_via_apis(doi: str, crossref_cache: dict, openalex_cache: dic
         return last_author, "semanticscholar"
 
     return "", ""
+
 
 def query_pubmed_info(doi: str) -> dict:
     """PubMed：返回 abstract + canonical_pub_date（若有）"""
@@ -706,6 +753,7 @@ def query_pubmed_info(doi: str) -> dict:
 
     return {"abstract": abstract, "source": "pubmed", "canonical_pub_date": pub_dt}
 
+
 def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]:
     if not doi:
         return "", ""
@@ -723,12 +771,14 @@ def get_abstract_via_apis(doi: str, aggressive: bool = False) -> tuple[str, str]
             return abs_txt, info.get("source", "")
     return "", ""
 
+
 # ================== Playwright：仅 Nature / RSC ==================
 
 def maybe_human_like_wait():
     if IS_CI:
         return
     time.sleep(random.uniform(0.6, 1.6))
+
 
 def extract_nature_abstract(page) -> str:
     try:
@@ -742,6 +792,7 @@ def extract_nature_abstract(page) -> str:
     except Exception:
         return ""
 
+
 def extract_rsc_abstract(page) -> str:
     try:
         page.wait_for_timeout(500)
@@ -753,6 +804,7 @@ def extract_rsc_abstract(page) -> str:
         return clean_html_text(el.inner_html())
     except Exception:
         return ""
+
 
 def get_html_abstract_for_record(page, link: str) -> tuple[str, str]:
     ll = (link or "").lower()
@@ -780,11 +832,13 @@ def get_html_abstract_for_record(page, link: str) -> tuple[str, str]:
         return (abs_txt, "rsc_html") if abs_txt else ("", "")
     return "", ""
 
+
 def launch_browser(p):
     kwargs = dict(headless=HEADLESS, slow_mo=0 if HEADLESS else random.randint(50, 120))
     if BROWSER_CHANNEL in ("chrome", "msedge", "edge"):
         kwargs["channel"] = "chrome" if BROWSER_CHANNEL == "chrome" else "msedge"
     return p.chromium.launch(**kwargs)
+
 
 # ================== 昨日缓存 ==================
 
@@ -838,6 +892,7 @@ def load_yesterday_cache(path: Path):
     print(f"✅ 昨日缓存：{len(prev_by_key)} 条；有摘要 {len(prev_has_abs_keys)}；需重试 {len(prev_no_abs_recent3_keys)}")
     return prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
 
+
 # ================== RSS 收集 ==================
 
 def read_feed_list(path: Path) -> list[str]:
@@ -845,6 +900,7 @@ def read_feed_list(path: Path) -> list[str]:
         raise FileNotFoundError(f"RSS 源文件不存在: {path}")
     with path.open("r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
+
 
 def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys):
     urls = read_feed_list(FEED_LIST_FILE)
@@ -885,54 +941,95 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             doi = extract_doi_from_entry(entry)
             key = record_key(doi, link)
 
-            # 昨天已有摘要 -> 直接复用
+            # ========= ✅ 改动点1：昨日复用“有摘要”不再挡住作者补全 =========
+            reused_prev = False
+            base_prev = None
             if key in prev_has_abs_keys:
-                today_records[key] = {**prev_by_key[key], "must_have_abstract": False}
-                # 保持 pub_date / published_str 为当前 RSS 的（若昨日缺）
-                if today_records[key].get("pub_date") is None and pub_date is not None:
-                    today_records[key]["pub_date"] = pub_date
-                if not (today_records[key].get("published_str") or "").strip() and published_str:
-                    today_records[key]["published_str"] = published_str
-                if is_sd_special:
-                    special_taken += 1
-                continue
+                reused_prev = True
+                base_prev = prev_by_key.get(key, {}).copy()
 
-            abstract = ""
-            abstract_source = ""
+                # 先把昨日摘要等复用进来（保持输入输出不变）
+                # 但不要直接 continue：如果 last_author 为空，继续走 RSS/API 补作者
+                rec = {**base_prev, "must_have_abstract": False}
+                # 若昨日缺 pub_date/published_str，用当前RSS补
+                if rec.get("pub_date") is None and pub_date is not None:
+                    rec["pub_date"] = pub_date
+                if not (rec.get("published_str") or "").strip() and published_str:
+                    rec["published_str"] = published_str
 
-            last_author = ""
-            last_author_source = ""
-            author_needs_api = False
+                # 为 Wiley 校验保留 RSS 原始日期（仅内存）
+                rec["rss_pub_date"] = pub_date
+                rec["rss_published_str"] = published_str
+                rec["_drop"] = False
 
+                # 如果昨日已经有作者，直接收录并结束；否则继续往下补作者
+                if (rec.get("last_author") or "").strip():
+                    today_records[key] = rec
+                    _dbg_author(f"   [AUTHOR] reuse-yesterday ✅ {rec.get('last_author')} (kept) | key={key}")
+                    if is_sd_special:
+                        special_taken += 1
+                    continue
+                else:
+                    # 先放一个“复用底座”，后面会补 last_author / author_needs_api
+                    today_records[key] = rec
+                    _dbg_author(f"   [AUTHOR] reuse-yesterday ⚠️ empty -> will try refill via RSS/API | key={key}")
+
+            # ========= 下面逻辑：正常收集 or 补作者（包括复用底座） =========
+
+            # 如果是“复用底座”，我们后面要更新它；否则创建新记录
+            if reused_prev and key in today_records:
+                r = today_records[key]
+                # title/source/link/doi 以今日为准（一般一致）
+                r["title"] = title
+                r["link"] = link
+                r["source"] = source_title
+                r["doi"] = doi
+                r["pub_date"] = r.get("pub_date") or pub_date
+                r["published_str"] = (r.get("published_str") or "").strip() or published_str
+            else:
+                r = None
+
+            abstract = (r.get("abstract") or "").strip() if r else ""
+            abstract_source = (r.get("abstract_source") or "").strip() if r else ""
+
+            last_author = (r.get("last_author") or "").strip() if r else ""
+            last_author_source = (r.get("last_author_source") or "").strip() if r else ""
+            author_needs_api = bool(r.get("author_needs_api")) if r else False
+
+            # 作者：先看是否强制 API（NSR/PNAS），否则 RSS 提取
             if is_oup_nsr(source_title, link) or is_pnas(source_title, link):
                 author_needs_api = True
             else:
-                last_author = extract_last_author_from_entry(
-                    entry,
-                    source_title=source_title,
-                    link=link,
-                    desc_html=desc_html,
-                )
-                if last_author:
-                    last_author_source = "rss"
-                else:
-                    author_needs_api = True
+                if not last_author:
+                    la, trace = extract_last_author_from_entry(
+                        entry,
+                        source_title=source_title,
+                        link=link,
+                        desc_html=desc_html,
+                    )
+                    if la:
+                        last_author = la
+                        last_author_source = "rss"
+                        _dbg_author(f"   [AUTHOR] rss ✅ {last_author} via {trace} | {source_title}")
+                    else:
+                        author_needs_api = True
+                        _dbg_author(f"   [AUTHOR] rss ❌ not found -> mark author_needs_api | {source_title}")
 
             # ✅ Cell：RSS description 就是摘要
-            if is_cellpress_inpress_any(source_title, link):
+            if not abstract and is_cellpress_inpress_any(source_title, link):
                 abstract = clean_html_text(desc_html)
                 abstract_source = "rss_cell"
 
             # ✅ OUP(NSR)：RSS description 内含 Abstract
-            elif is_oup_nsr(source_title, link):
+            elif not abstract and is_oup_nsr(source_title, link):
                 abs_txt = extract_oup_abstract_from_rss(desc_html)
                 if abs_txt:
                     abstract = abs_txt
                     abstract_source = "rss_oup"
 
-            must_have_abstract = key in prev_no_abs_recent3_keys
+            must_have_abstract = (key in prev_no_abs_recent3_keys) or bool(r.get("must_have_abstract")) if r else (key in prev_no_abs_recent3_keys)
 
-            today_records[key] = {
+            out = {
                 "title": title,
                 "link": link,
                 "source": source_title,
@@ -941,15 +1038,17 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
                 "doi": doi,
                 "last_author": (last_author or "").strip(),
                 "last_author_source": (last_author_source or "").strip(),
-                "author_needs_api": author_needs_api,
+                "author_needs_api": bool(author_needs_api),
                 "abstract": (abstract or "").strip(),
                 "abstract_source": (abstract_source or "").strip(),
-                "must_have_abstract": must_have_abstract,
+                "must_have_abstract": bool(must_have_abstract),
                 # ✅ Wiley 校验需要：保存 RSS 原始日期（仅内存使用，不导出）
                 "rss_pub_date": pub_date,
                 "rss_published_str": published_str,
                 "_drop": False,
             }
+
+            today_records[key] = out
 
             if is_sd_special:
                 special_taken += 1
@@ -958,6 +1057,7 @@ def collect_rss_records(prev_by_key, prev_has_abs_keys, prev_no_abs_recent3_keys
             print(f"  ✅ 特殊源实际收录：{special_taken}/{special_limit} 条（标题过滤/去重后可能少于limit）")
 
     return today_records
+
 
 def carry_over_prev_with_abstract(today_records, prev_by_key, prev_has_abs_keys):
     moved = 0
@@ -972,6 +1072,7 @@ def carry_over_prev_with_abstract(today_records, prev_by_key, prev_has_abs_keys)
                 moved += 1
     print(f"✅ 搬运昨日（2天内且有摘要）：{moved} 条")
 
+
 def build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records):
     retry = []
     for key in prev_no_abs_recent3_keys:
@@ -984,11 +1085,12 @@ def build_retry_records(prev_by_key, prev_no_abs_recent3_keys, today_records):
     print(f"✅ 重试列表（昨日3天内无摘要 & 今日RSS未出现）：{len(retry)} 条")
     return retry
 
+
 # ================== 摘要补全 + Wiley 日期复核（recent5 规则） ==================
 
 def enrich_with_html_then_api(records: list[dict]):
     need_html = any(
-        (("nature.com" in (r.get("link","").lower())) or ("rsc.org" in (r.get("link","").lower())) or ("pubs.rsc.org" in (r.get("link","").lower())))
+        (("nature.com" in (r.get("link", "").lower())) or ("rsc.org" in (r.get("link", "").lower())) or ("pubs.rsc.org" in (r.get("link", "").lower())))
         and not (r.get("abstract") or "").strip()
         for r in records
     )
@@ -1030,12 +1132,12 @@ def enrich_with_html_then_api(records: list[dict]):
         doi = (r.get("doi") or "").strip()
 
         # Wiley 日期复核（仅对已入池的 Wiley：即RSS已是昨天/前天）
-        if doi and is_wiley_record(r.get("source",""), r.get("link",""), doi):
+        if doi and is_wiley_record(r.get("source", ""), r.get("link", ""), doi):
             # 保证 RSS 备份字段存在
             if r.get("rss_pub_date") in ("", None):
                 r["rss_pub_date"] = r.get("pub_date")
             if not (r.get("rss_published_str") or "").strip():
-                r["rss_published_str"] = r.get("published_str","") or ""
+                r["rss_published_str"] = r.get("published_str", "") or ""
 
             rss_dt = r.get("rss_pub_date")
 
@@ -1077,18 +1179,21 @@ def enrich_with_html_then_api(records: list[dict]):
                     r["abstract"] = abs_txt
                     r["abstract_source"] = "crossref"
 
-            if not (r.get("last_author") or "").strip() and (r.get("author_needs_api") or is_oup_nsr(r.get("source",""), r.get("link","")) or is_pnas(r.get("source",""), r.get("link",""))):
+            # Wiley：如果缺作者，优先 Crossref 的 last_author（更快）
+            if not (r.get("last_author") or "").strip() and (r.get("author_needs_api") or is_oup_nsr(r.get("source", ""), r.get("link", "")) or is_pnas(r.get("source", ""), r.get("link", ""))):
                 last_author = (info.get("last_author") or "").strip()
                 if last_author:
                     r["last_author"] = last_author
                     r["last_author_source"] = "crossref"
+                    _dbg_author(f"   [AUTHOR] api ✅ {last_author} via crossref (wiley-fast)")
 
         # 作者补全：不依赖摘要是否已存在
-        if doi and not (r.get("last_author") or "").strip() and (r.get("author_needs_api") or is_oup_nsr(r.get("source",""), r.get("link","")) or is_pnas(r.get("source",""), r.get("link",""))):
+        if doi and not (r.get("last_author") or "").strip() and (r.get("author_needs_api") or is_oup_nsr(r.get("source", ""), r.get("link", "")) or is_pnas(r.get("source", ""), r.get("link", ""))):
             last_author, a_src = get_last_author_via_apis(doi, crossref_cache, openalex_cache, s2_cache)
             if last_author:
                 r["last_author"] = last_author
                 r["last_author_source"] = a_src
+                _dbg_author(f"   [AUTHOR] api ✅ {last_author} via {a_src}")
 
         # 原有：补全剩余摘要（先 HTML 后 API）
         if (r.get("abstract") or "").strip():
@@ -1097,11 +1202,12 @@ def enrich_with_html_then_api(records: list[dict]):
         if not doi:
             continue
 
-        aggressive = is_acs_energy_letters(r.get("source",""), r.get("link",""))
+        aggressive = is_acs_energy_letters(r.get("source", ""), r.get("link", ""))
         abs_txt, src = get_abstract_via_apis(doi, aggressive=aggressive)
         if abs_txt:
             r["abstract"] = abs_txt.strip()
             r["abstract_source"] = src
+
 
 # ================== 导出（只保留9列） ==================
 
@@ -1199,6 +1305,7 @@ def export_records(today_records: dict):
     df.to_csv(TODAY_CSV, index=False, encoding="utf-8-sig")
     print(f"\n✅ 导出：{len(df)} 条 -> {TODAY_CSV}")
 
+
 # ================== 主流程 ==================
 
 def main():
@@ -1208,6 +1315,7 @@ def main():
     print(f"▶ Wiley复核规则：canonical_date 在最近{WILEY_CANONICAL_RECENT_DAYS}天内 => 保持RSS日期；否则 drop")
     print(f"▶ 昨日CSV：{YESTERDAY_CSV}")
     print(f"▶ 今日输出：{TODAY_CSV}")
+    print(f"▶ DEBUG_AUTHOR={DEBUG_AUTHOR}")
     print("▶ ScienceDirect 特殊源限制 + pub_date写抓取日期的前一天：")
     for k, v in SD_SPECIAL_LIMITS.items():
         print(f"   - {k} -> latest {v}, pub_date={SD_ANCHOR_DATE} (UTC)")
@@ -1222,7 +1330,7 @@ def main():
     enrich_with_html_then_api(records_list)
 
     # 重建 dict（以 key 去重）
-    today_records = {record_key(r.get("doi",""), r.get("link","")): r for r in records_list}
+    today_records = {record_key(r.get("doi", ""), r.get("link", "")): r for r in records_list}
 
     # ✅ Wiley：只根据 _drop 标记丢弃（不会扩大抓取范围）
     drop_keys = [k for k, r in today_records.items() if r.get("_drop")]
@@ -1243,7 +1351,7 @@ def main():
             # Wiley 若被标记 drop，不加入
             if r.get("_drop"):
                 continue
-            k = record_key(r.get("doi",""), r.get("link",""))
+            k = record_key(r.get("doi", ""), r.get("link", ""))
             today_records[k] = r
             added += 1
         print(f"✅ 重试成功加入今日：{added} 条（失败的不加入 / Wiley过旧的不加入）")
@@ -1257,6 +1365,6 @@ def main():
 
     export_records(today_records)
 
+
 if __name__ == "__main__":
     main()
-
