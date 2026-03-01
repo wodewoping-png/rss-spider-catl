@@ -1042,72 +1042,66 @@ def enrich_with_html_then_api(records: list[dict]):
 # ================== 导出（只保留9列） ==================
 
 def export_records(today_records: dict):
-        if not today_records:
+    if not today_records:
         print("⚠️ 没有记录可导出。")
         return
 
-    def _pick_str(a: str, b: str, prefer_longer: bool = False) -> str:
-        a = (a or "").strip()
-        b = (b or "").strip()
-        if not a:
-            return b
-        if not b:
-            return a
-        if prefer_longer and len(b) > len(a):
-            return b
-        return a
+    def _record_fill_score(r: dict) -> int:
+        fields = [
+            "title",
+            "link",
+            "source",
+            "published_str",
+            "pub_date",
+            "doi",
+            "last_author",
+            "abstract",
+            "abstract_source",
+        ]
+        score = 0
+        for f in fields:
+            v = r.get(f)
+            if v is None:
+                continue
+            if isinstance(v, str):
+                if v.strip():
+                    score += 1
+            else:
+                score += 1
+        return score
 
-    def _merge_two(base: dict, other: dict) -> dict:
-        out = base.copy()
-
-        out["title"] = _pick_str(base.get("title"), other.get("title"), prefer_longer=True)
-        out["link"] = _pick_str(base.get("link"), other.get("link"))
-        out["source"] = _pick_str(base.get("source"), other.get("source"), prefer_longer=True)
-        out["published_str"] = _pick_str(base.get("published_str"), other.get("published_str"), prefer_longer=True)
-        out["doi"] = _pick_str(base.get("doi"), other.get("doi"))
-        out["last_author"] = _pick_str(base.get("last_author"), other.get("last_author"), prefer_longer=True)
-
-        a_dt = base.get("pub_date")
-        b_dt = other.get("pub_date")
-        if a_dt is None:
-            out["pub_date"] = b_dt
-        elif b_dt is None:
-            out["pub_date"] = a_dt
-        else:
-            out["pub_date"] = max(a_dt, b_dt)
-
-        abs_a = (base.get("abstract") or "").strip()
-        abs_b = (other.get("abstract") or "").strip()
-        if abs_b and (not abs_a or len(abs_b) > len(abs_a)):
-            out["abstract"] = abs_b
-            out["abstract_source"] = (other.get("abstract_source") or "").strip()
-        else:
-            out["abstract"] = abs_a
-            out["abstract_source"] = (base.get("abstract_source") or "").strip()
-
-        out["must_have_abstract"] = bool(base.get("must_have_abstract")) or bool(other.get("must_have_abstract"))
-
-        for extra in ("last_author_source", "author_needs_api", "rss_pub_date", "rss_published_str", "_drop"):
-            if not out.get(extra) and other.get(extra):
-                out[extra] = other.get(extra)
-
-        return out
-
-    def _merge_by_link(records: list[dict]) -> list[dict]:
-        merged: dict[str, dict] = {}
+    def _merge_records_by_link(records: list[dict]) -> list[dict]:
+        groups: dict[str, list[dict]] = {}
         for r in records:
             link = (r.get("link") or "").strip()
-            key = normalize_link(link) if link else ""
-            if not key:
-                key = record_key(r.get("doi", ""), link)
-            if key in merged:
-                merged[key] = _merge_two(merged[key], r)
-            else:
-                merged[key] = r.copy()
-        return list(merged.values())
+            norm = normalize_link(link).lower() if link else ""
+            key = f"url:{norm}" if norm else record_key(r.get("doi", ""), link)
+            groups.setdefault(key, []).append(r)
 
-    records = _merge_by_link(list(today_records.values()))
-    df_all = pd.DataFrame(records)
+        merged = []
+        for _, items in groups.items():
+            if len(items) == 1:
+                merged.append(items[0])
+                continue
+            items = sorted(items, key=_record_fill_score, reverse=True)
+            base = items[0].copy()
+            for other in items[1:]:
+                for f in ("title", "link", "source", "published_str", "doi", "last_author", "abstract", "abstract_source"):
+                    if not (base.get(f) or "").strip():
+                        v = (other.get(f) or "").strip() if isinstance(other.get(f), str) else other.get(f)
+                        if isinstance(v, str):
+                            if v.strip():
+                                base[f] = v
+                        elif v is not None:
+                            base[f] = v
+                if base.get("pub_date") is None and other.get("pub_date") is not None:
+                    base["pub_date"] = other.get("pub_date")
+                base["must_have_abstract"] = bool(base.get("must_have_abstract")) or bool(other.get("must_have_abstract"))
+            merged.append(base)
+        return merged
+
+    merged_records = _merge_records_by_link(list(today_records.values()))
+    df_all = pd.DataFrame(merged_records)
 
     keep_cols = [
         "title",
