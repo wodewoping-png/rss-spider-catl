@@ -1046,7 +1046,62 @@ def export_records(today_records: dict):
         print("⚠️ 没有记录可导出。")
         return
 
-    df_all = pd.DataFrame(list(today_records.values()))
+    def _record_fill_score(r: dict) -> int:
+        fields = [
+            "title",
+            "link",
+            "source",
+            "published_str",
+            "pub_date",
+            "doi",
+            "last_author",
+            "abstract",
+            "abstract_source",
+        ]
+        score = 0
+        for f in fields:
+            v = r.get(f)
+            if v is None:
+                continue
+            if isinstance(v, str):
+                if v.strip():
+                    score += 1
+            else:
+                score += 1
+        return score
+
+    def _merge_records_by_link(records: list[dict]) -> list[dict]:
+        groups: dict[str, list[dict]] = {}
+        for r in records:
+            link = (r.get("link") or "").strip()
+            norm = normalize_link(link).lower() if link else ""
+            key = f"url:{norm}" if norm else record_key(r.get("doi", ""), link)
+            groups.setdefault(key, []).append(r)
+
+        merged = []
+        for _, items in groups.items():
+            if len(items) == 1:
+                merged.append(items[0])
+                continue
+            items = sorted(items, key=_record_fill_score, reverse=True)
+            base = items[0].copy()
+            for other in items[1:]:
+                for f in ("title", "link", "source", "published_str", "doi", "last_author", "abstract", "abstract_source"):
+                    if not (base.get(f) or "").strip():
+                        v = (other.get(f) or "").strip() if isinstance(other.get(f), str) else other.get(f)
+                        if isinstance(v, str):
+                            if v.strip():
+                                base[f] = v
+                        elif v is not None:
+                            base[f] = v
+                if base.get("pub_date") is None and other.get("pub_date") is not None:
+                    base["pub_date"] = other.get("pub_date")
+                base["must_have_abstract"] = bool(base.get("must_have_abstract")) or bool(other.get("must_have_abstract"))
+            merged.append(base)
+        return merged
+
+    merged_records = _merge_records_by_link(list(today_records.values()))
+    df_all = pd.DataFrame(merged_records)
 
     keep_cols = [
         "title",
