@@ -42,7 +42,7 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run spider (headless)
-        run: python spider_abstract_1216.py
+        run: python spider0301.py
         env:
           PLAYWRIGHT_HEADLESS: "1"
 
