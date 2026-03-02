@@ -788,30 +788,38 @@ def extract_nature_last_author_from_page_source(page) -> str:
 
 # ✅ 改造：同时返回 abstract_source + (可选) nature_last_author
 def get_html_abstract_and_nature_author(page, link: str) -> tuple[str, str, str]:
+    """
+    永远返回三元组：(abstract, abstract_source, nature_last_author)
+    - abstract_source: "nature_html" / "rsc_html" / ""
+    - nature_last_author: 仅 Nature 尝试从页面源码 contentInfo.authors[-1] 解析，失败则 ""
+    """
     ll = (link or "").lower()
     if not ll:
         return "", "", ""
+
     is_nature = "nature.com" in ll
-    is_rsc = "rsc.org" in ll or "pubs.rsc.org" in ll
+    is_rsc = ("rsc.org" in ll) or ("pubs.rsc.org" in ll)
     if not (is_nature or is_rsc):
         return "", "", ""
 
-    print(f" [HTML] {link}")
+    print(f"   [HTML] {link}")
     try:
         maybe_human_like_wait()
         page.goto(link, wait_until="load", timeout=60_000)
         maybe_human_like_wait()
     except Exception as e:
-        print(f" ⚠️ HTML打开失败: {e}")
+        print(f"   ⚠️ HTML打开失败: {e}")
         return "", "", ""
 
     if is_nature:
-        abs_txt = extract_nature_abstract(page)
-        la = extract_nature_last_author_from_page_source(page)
-        return (abs_txt, "nature_html") if abs_txt else ("", "", la) if la else ("", "", "")
+        abs_txt = extract_nature_abstract(page) or ""
+        la = extract_nature_last_author_from_page_source(page) or ""
+        return abs_txt, ("nature_html" if abs_txt.strip() else ""), la.strip()
+
     if is_rsc:
-        abs_txt = extract_rsc_abstract(page)
-        return (abs_txt, "rsc_html", "") if abs_txt else ("", "", "")
+        abs_txt = extract_rsc_abstract(page) or ""
+        return abs_txt, ("rsc_html" if abs_txt.strip() else ""), ""
+
     return "", "", ""
 
 def launch_browser(p):
@@ -1325,3 +1333,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
