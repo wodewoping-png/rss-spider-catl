@@ -1,0 +1,65 @@
+name: Weekly CSV to XLSX+Word (GPT)
+
+on:
+  schedule:
+    - cron: "40 3 * * 5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rss-to-word
+  cancel-in-progress: false
+
+jobs:
+  tran-to-xlsx-docx:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Run new_tran.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+        run: |
+          python3 new_tran.py -c classification.txt
+
+      - name: Commit outputs (only translated files)
+        run: |
+          set -e
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 只添加本次 translated 文件
+          git add output/weekly/*_translated.xlsx || true
+          git add output/weekly/*_translated.docx || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: weekly translated xlsx+docx (UTC $(date -u +'%Y-%m-%d'))"
+
+          git fetch origin main
+          git pull --rebase origin main
+
+          git push origin HEAD:main
