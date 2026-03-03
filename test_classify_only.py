@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-test_classify_only.py
+test_classify_only.py (by_id + retry-missing)
 
 Only classify (no translation) + output xlsx/docx.
-Robust to occasional "Classification output invalid" by:
-- retry same batch
-- split batch recursively
-- truncate long texts for classification
-- dump debug artifacts on failure
+
+Key upgrades:
+1) Batch classification uses stable IDs and returns a mapping: {"by_id": {"<id>": ["类A","类B"], ...}}
+2) If any id is missing from model output, we collect them and ask GPT again (single retry) to fill gaps.
+3) If still missing after retry, those records go to a separate Excel sheet: "仍缺失标签"
+4) Always write something for every id: empty list means "no label" (未匹配)
+5) Debug artifacts for failures are dumped to output/debug (items, raw, reason)
 """
 
 import argparse
@@ -17,6 +19,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 import pandas as pd
 from docx import Document
@@ -30,16 +33,19 @@ print("[boot] test_classify_only.py started", flush=True)
 # ============================
 # OpenAI configuration
 # ============================
-# IMPORTANT: guard empty string
 OPENAI_MODEL = (os.getenv("OPENAI_MODEL") or "").strip() or "gpt-4o-mini"
 OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0"))
 OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "3"))
 OPENAI_BASE_URL = (os.getenv("OPENAI_BASE_URL") or "").strip()
 
 CLASSIFY_BATCH_SIZE = int(os.getenv("CLASSIFY_BATCH_SIZE", "12"))
-CLASSIFY_TEXT_MAX_CHARS = int(os.getenv("CLASSIFY_TEXT_MAX_CHARS", "1200"))  # reduce prompt size & improve stability
+CLASSIFY_TEXT_MAX_CHARS = int(os.getenv("CLASSIFY_TEXT_MAX_CHARS", "1200"))
 DEBUG_DUMP_DIR = os.getenv("DEBUG_DUMP_DIR", "output/debug")
+
 DEFAULT_CLASSIFICATION_FILE = "classification.txt"
+
+# Excel sheet for records still missing after 2nd call
+SHEET_STILL_MISSING = "仍缺失标签"
 
 
 def _fmt_secs(s: float) -> str:
@@ -92,7 +98,6 @@ def _build_openai_client():
 
 
 def _openai_chat_complete(client, messages):
-    # If model is empty -> OpenAI error "you must provide a model parameter"
     if not OPENAI_MODEL:
         raise RuntimeError("OPENAI_MODEL is empty. Set OPENAI_MODEL or rely on default.")
     return client.chat.completions.create(
@@ -217,11 +222,11 @@ def load_classification_rules(path: str):
     return rules
 
 
-def _dump_debug(batch_items, content, reason: str):
+def _dump_debug(batch_items, content, reason: str, tag: str = "classify"):
     outdir = Path(DEBUG_DUMP_DIR)
     outdir.mkdir(parents=True, exist_ok=True)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    stem = f"classify_fail_{ts}"
+    stem = f"{tag}_fail_{ts}"
 
     (outdir / f"{stem}_reason.txt").write_text(reason, encoding="utf-8")
     (outdir / f"{stem}_items.json").write_text(
@@ -232,119 +237,202 @@ def _dump_debug(batch_items, content, reason: str):
     print(f"[debug] dumped failure artifacts to {outdir.resolve()}", flush=True)
 
 
-def classify_batch(client, rules, items, debug_label="classify"):
-    category_names = [x[0] for x in rules]
+def _coerce_labels_list(x) -> List[str]:
+    if not isinstance(x, list):
+        return []
+    out = []
+    for v in x:
+        s = _normalize_cell(v)
+        if s:
+            out.append(s)
+    # de-dup preserve order
+    return list(dict.fromkeys(out))
+
+
+def classify_batch_by_id(
+    client,
+    rules: List[Tuple[str, str]],
+    items: List[Dict],
+    label: str = "classify_by_id",
+) -> Tuple[Dict[str, List[str]], str]:
+    """
+    Returns (by_id_map, raw_content).
+
+    by_id_map keys are str(ids); values are list of category names (possibly empty list).
+    If a given id is missing from output, it simply won't be present in by_id_map.
+    """
+    allowed = [name for name, _ in rules]
+    allowed_set = set(allowed)
     categories_block = "\n".join([f"- {name}: {desc}" for name, desc in rules])
 
     system = (
         "You are an expert literature classifier. "
-        "Classify each paper by the given category definitions using abstract first, title as fallback. "
+        "Classify each paper using abstract first, title as fallback. "
         "Multi-label is allowed. Do not invent category names."
     )
+
+    # Important: make schema as explicit as possible.
     user = (
         "分类规则（类别名: 说明）:\n"
         f"{categories_block}\n\n"
         "任务要求:\n"
         "1) 每个条目可属于多个类别。\n"
-        "2) 必须只使用给定类别名。\n"
-        "3) 若都不匹配，返回空数组。\n"
-        "4) 返回JSON: {\"labels\": [[\"类别A\",\"类别B\"], ...]}，长度与输入一致。\n\n"
-        f"条目（每项使用 text 字段进行分类）:\n{json.dumps(items, ensure_ascii=False)}"
+        "2) 必须只使用给定类别名（不可发明/改写）。\n"
+        "3) 若都不匹配，必须返回空数组 []。\n"
+        "4) 必须为每个输入条目的 id 返回一个键（不允许漏掉）。\n"
+        "5) 仅返回JSON，且严格符合：\n"
+        " {\"by_id\": {\"<id>\": [\"类别A\", \"类别B\"], \"<id2>\": []}}\n\n"
+        f"输入条目（每项含 id/title/text）：\n{json.dumps(items, ensure_ascii=False)}"
     )
 
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    resp = _call_with_retries(client, messages, debug_label)
-    content = _clean_json_text(_extract_content(resp))
+    resp = _call_with_retries(client, messages, label)
+    raw = _clean_json_text(_extract_content(resp))
 
     try:
-        data = json.loads(content)
-        labels = data.get("labels", None)
+        data = json.loads(raw)
     except Exception as e:
-        _dump_debug(items, content, f"json.loads failed: {e}")
-        raise RuntimeError("Classification output invalid (json parse).")
+        _dump_debug(items, raw, f"json.loads failed: {e}", tag=label)
+        return {}, raw
 
-    if not isinstance(labels, list) or len(labels) != len(items):
-        _dump_debug(items, content, f"labels invalid type/len: got={type(labels)} len={len(labels) if isinstance(labels, list) else 'NA'} expect={len(items)}")
-        raise RuntimeError("Classification output invalid (labels len mismatch).")
+    by_id = data.get("by_id", {})
+    if not isinstance(by_id, dict):
+        _dump_debug(items, raw, f"by_id not a dict: {type(by_id)}", tag=label)
+        return {}, raw
 
-    allowed = set(category_names)
-    normalized = []
-    for arr in labels:
-        if not isinstance(arr, list):
-            arr = []
-        clean = []
-        for c in arr:
-            c = _normalize_cell(c)
-            if c in allowed:
-                clean.append(c)
-        normalized.append(list(dict.fromkeys(clean)))
-    return normalized
+    normalized: Dict[str, List[str]] = {}
+    for k, v in by_id.items():
+        k_str = _normalize_cell(k)
+        if not k_str:
+            continue
+        labs = _coerce_labels_list(v)
+        # filter invalid labels
+        labs = [x for x in labs if x in allowed_set]
+        normalized[k_str] = labs
+
+    return normalized, raw
 
 
-def _classify_with_fallback(client, rules, batch):
+def classify_records(df: pd.DataFrame, rules: List[Tuple[str, str]]):
     """
-    Robust wrapper:
-    1) try batch
-    2) retry once
-    3) split batch recursively
-    4) final fallback for single item: []
+    Returns:
+      df_out: df with 'categories' column
+      labels_list: List[List[str]] aligned to df rows
+      still_missing_row_indices: List[int] (rows missing after 2nd call)
     """
-    try:
-        return classify_batch(client, rules, batch, debug_label="classify")
-    except Exception as e1:
-        print(f"[classify] batch failed (size={len(batch)}): {e1}", flush=True)
-        # retry same batch once (sometimes output format glitches)
-        try:
-            return classify_batch(client, rules, batch, debug_label="classify_retry")
-        except Exception as e2:
-            print(f"[classify] retry failed (size={len(batch)}): {e2}", flush=True)
+    df = ensure_base_columns(df.copy())
 
-    if len(batch) == 1:
-        # do NOT crash whole pipeline
-        return [[]]
-
-    mid = max(1, len(batch) // 2)
-    left = _classify_with_fallback(client, rules, batch[:mid])
-    right = _classify_with_fallback(client, rules, batch[mid:])
-    return left + right
-
-
-def classify_records(df: pd.DataFrame, rules):
-    items = []
-    for _, row in df.iterrows():
+    # build items with stable IDs
+    items_all = []
+    row_ids = [] # str id per row (stable)
+    for idx, row in df.iterrows():
         abstract = _normalize_cell(row.get("abstract", ""))
         title = _normalize_cell(row.get("title", ""))
         text = abstract if abstract else title
         text = _normalize_cell(text)
         if len(text) > CLASSIFY_TEXT_MAX_CHARS:
             text = text[:CLASSIFY_TEXT_MAX_CHARS]
-        items.append({"title": title, "text": text})
+        # stable id: row index + 1 (or you can use hash; this is deterministic per run)
+        rid = str(int(idx) + 1)
+        row_ids.append(rid)
+        items_all.append({"id": rid, "title": title, "text": text})
 
     client = _build_openai_client()
-    all_labels = []
+    allowed_set = set([name for name, _ in rules])
+
+    # First pass classification (batched)
+    by_id_total: Dict[str, List[str]] = {}
+    missing_ids_first: List[str] = []
 
     start = time.time()
-    total = len(items)
-    for batch in _chunked(items, CLASSIFY_BATCH_SIZE):
-        labels = _classify_with_fallback(client, rules, batch)
-        all_labels.extend(labels)
+    total = len(items_all)
+    processed = 0
 
-        done = len(all_labels)
+    for batch in _chunked(items_all, CLASSIFY_BATCH_SIZE):
+        # Optional: handle empty text deterministically to reduce model weirdness
+        non_empty = [it for it in batch if _normalize_cell(it.get("text", "")) != ""]
+        empty = [it for it in batch if it not in non_empty]
+
+        by_id_map, _raw = classify_batch_by_id(client, rules, non_empty, label="classify_by_id")
+        # fill in empty-text ones as no-label
+        for it in empty:
+            by_id_map[str(it["id"])] = []
+
+        # merge
+        for _id, labs in by_id_map.items():
+            if not isinstance(labs, list):
+                labs = []
+            labs = [x for x in labs if x in allowed_set]
+            by_id_total[_id] = list(dict.fromkeys(labs))
+
+        # track missing within this batch (only for non-empty items; empty already filled)
+        batch_ids = [str(it["id"]) for it in batch]
+        for bid in batch_ids:
+            if bid not in by_id_total:
+                # shouldn't happen if model obeys; but we'll handle
+                missing_ids_first.append(bid)
+
+        processed += len(batch)
         elapsed = time.time() - start
-        rate = done / elapsed if elapsed > 0 else 0.0
-        eta = (total - done) / rate if rate > 0 else 0.0
+        rate = processed / elapsed if elapsed > 0 else 0.0
+        eta = (total - processed) / rate if rate > 0 else 0.0
         print(
-            f"[classify] {done}/{total} | elapsed={_fmt_secs(elapsed)} | rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}",
+            f"[classify#1] {processed}/{total} | elapsed={_fmt_secs(elapsed)} | rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}",
             flush=True,
         )
 
-    df = df.copy()
-    df["categories"] = [";".join(x) for x in all_labels]
-    return df, all_labels
+    # Determine missing after first pass
+    missing_after_first = [rid for rid in row_ids if rid not in by_id_total]
+    missing_after_first = list(dict.fromkeys(missing_after_first))
+    if missing_after_first:
+        print(f"[classify#1] missing ids after first pass: {len(missing_after_first)}", flush=True)
+
+    # Second pass: ask GPT only for missing ids
+    missing_after_second: List[str] = []
+    if missing_after_first:
+        retry_items = []
+        id_to_item = {str(it["id"]): it for it in items_all}
+        for mid in missing_after_first:
+            it = id_to_item.get(mid)
+            if it:
+                retry_items.append(it)
+
+        # Do a single retry in batches (same size or smaller)
+        for batch in _chunked(retry_items, max(1, min(CLASSIFY_BATCH_SIZE, 8))):
+            by_id_map, _raw = classify_batch_by_id(client, rules, batch, label="classify_by_id_retry_missing")
+            for _id, labs in by_id_map.items():
+                labs = [x for x in labs if x in allowed_set]
+                by_id_total[_id] = list(dict.fromkeys(labs))
+
+        # compute still missing
+        missing_after_second = [mid for mid in missing_after_first if mid not in by_id_total]
+        if missing_after_second:
+            print(f"[classify#2] still missing after second pass: {len(missing_after_second)}", flush=True)
+
+    # Build labels_list aligned to df rows; if truly missing (after 2nd), set [].
+    labels_list: List[List[str]] = []
+    for rid in row_ids:
+        labs = by_id_total.get(rid, [])
+        if not isinstance(labs, list):
+            labs = []
+        labels_list.append(labs)
+
+    df["categories"] = [";".join(x) for x in labels_list]
+
+    # Convert missing ids to row indices (0-based df position)
+    # rid = str(idx+1) so idx = int(rid)-1
+    still_missing_row_indices = []
+    for mid in missing_after_second:
+        try:
+            still_missing_row_indices.append(int(mid) - 1)
+        except Exception:
+            continue
+
+    return df, labels_list, still_missing_row_indices
 
 
 # ============================
-# DOCX helpers (same as your script)
+# DOCX helpers (same layout as before)
 # ============================
 def add_hyperlink(paragraph, url: str, text: str, color_hex="1155CC", underline=True):
     if not url:
@@ -455,13 +543,13 @@ def add_abstract_with_subscripts(paragraph, abstract: str):
 
 def _write_record_block(doc, row, idx):
     title_en = _normalize_cell(row.get("title", ""))
-    title_zh = _normalize_cell(row.get("title_zh", ""))  # may be empty in classify-only mode
+    title_zh = _normalize_cell(row.get("title_zh", "")) # may be empty in classify-only mode
     link = _normalize_cell(row.get("link", ""))
     source = _normalize_cell(row.get("source", ""))
     pub_date = _normalize_cell(row.get("pub_date", "")) or _normalize_cell(row.get("published", ""))
     doi = _normalize_cell(row.get("doi", ""))
     abstract_en = _normalize_cell(row.get("abstract", ""))
-    abstract_zh = _normalize_cell(row.get("abstract_zh", ""))  # may be empty
+    abstract_zh = _normalize_cell(row.get("abstract_zh", "")) # may be empty
     abstract_source = _normalize_cell(row.get("abstract_source", ""))
     must_have_abstract = _normalize_cell(row.get("must_have_abstract", ""))
 
@@ -491,12 +579,12 @@ def _write_record_block(doc, row, idx):
     mr = meta.add_run("Source: ")
     mr.bold = True
     meta.add_run(source or "-")
-    meta.add_run("    ")
+    meta.add_run(" ")
     mr = meta.add_run("Pub date: ")
     mr.bold = True
     meta.add_run(pub_date or "-")
     if doi:
-        meta.add_run("    ")
+        meta.add_run(" ")
         mr = meta.add_run("DOI: ")
         mr.bold = True
         add_hyperlink(meta, doi_to_url(doi), doi)
@@ -531,7 +619,7 @@ def _write_record_block(doc, row, idx):
     add_abstract_with_subscripts(abs_en_p, abstract_en if abstract_en else "(empty)")
 
 
-def df_to_word_bilingual_grouped(df: pd.DataFrame, labels, ordered_categories, output_docx: str, report_title="Tech Tracking Digest"):
+def df_to_word_bilingual_grouped(df: pd.DataFrame, labels, ordered_categories, output_docx: str, report_title="Tech Tracking Digest (Classify-Only Test)"):
     doc = Document()
     set_doc_default_style(doc, font_name="Calibri", font_size_pt=11)
 
@@ -588,7 +676,7 @@ def df_to_word_bilingual_grouped(df: pd.DataFrame, labels, ordered_categories, o
 # XLSX output
 # ============================
 def _safe_sheet_name(name: str, used: set) -> str:
-    base = re.sub(r"[\\/*?:\[\]]", "_", _normalize_cell(name)) or "Sheet"
+    base = re.sub(r"[\\/*?:]", "_", _normalize_cell(name)) or "Sheet"
     base = base[:31]
     candidate = base
     i = 2
@@ -600,7 +688,13 @@ def _safe_sheet_name(name: str, used: set) -> str:
     return candidate
 
 
-def write_grouped_xlsx(df: pd.DataFrame, labels, ordered_categories, output_xlsx: str):
+def write_grouped_xlsx(
+    df: pd.DataFrame,
+    labels: List[List[str]],
+    ordered_categories: List[str],
+    output_xlsx: str,
+    still_missing_row_indices: List[int],
+):
     if df.empty:
         df.to_excel(output_xlsx, index=False, sheet_name="Empty")
         return
@@ -613,12 +707,19 @@ def write_grouped_xlsx(df: pd.DataFrame, labels, ordered_categories, output_xlsx
 
     used = set()
     with pd.ExcelWriter(output_xlsx, engine="openpyxl") as writer:
+        # per-category sheets
         for cat in ordered_categories:
             idxs = cat_to_indices.get(cat, [])
             if not idxs:
                 continue
             sheet = _safe_sheet_name(cat, used)
             sub = df.iloc[idxs].copy()
+            sub.to_excel(writer, index=False, sheet_name=sheet)
+
+        # sheet for still-missing after second pass
+        if still_missing_row_indices:
+            sheet = _safe_sheet_name(SHEET_STILL_MISSING, used)
+            sub = df.iloc[still_missing_row_indices].copy()
             sub.to_excel(writer, index=False, sheet_name=sheet)
 
 
@@ -642,17 +743,23 @@ def main():
     rules = load_classification_rules(args.classification)
     ordered_categories = [name for name, _ in rules]
     print(f"[classify] loaded categories: {ordered_categories}", flush=True)
-    print(f"[classify] model={OPENAI_MODEL} batch={CLASSIFY_BATCH_SIZE} text_max_chars={CLASSIFY_TEXT_MAX_CHARS}", flush=True)
+    print(
+        f"[classify] model={OPENAI_MODEL} batch={CLASSIFY_BATCH_SIZE} text_max_chars={CLASSIFY_TEXT_MAX_CHARS}",
+        flush=True,
+    )
 
-    df, labels = classify_records(df, rules)
+    df_out, labels, still_missing = classify_records(df, rules)
 
     output_xlsx = csv_path.with_name(csv_path.stem + "_classify_only.xlsx")
-    write_grouped_xlsx(df, labels, ordered_categories, str(output_xlsx))
+    write_grouped_xlsx(df_out, labels, ordered_categories, str(output_xlsx), still_missing)
     print(f"[io] Wrote XLSX: {output_xlsx}", flush=True)
 
     output_docx = output_xlsx.with_suffix(".docx")
-    df_to_word_bilingual_grouped(df, labels, ordered_categories, str(output_docx), report_title=args.report_title)
+    df_to_word_bilingual_grouped(df_out, labels, ordered_categories, str(output_docx), report_title=args.report_title)
     print(f"[io] Wrote DOCX: {output_docx}", flush=True)
+
+    if still_missing:
+        print(f"[warn] still missing labels after 2nd pass: {len(still_missing)} (see sheet '{SHEET_STILL_MISSING}')", flush=True)
 
 
 if __name__ == "__main__":
