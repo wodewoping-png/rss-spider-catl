@@ -13,9 +13,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  tran-to-xlsx-docx:
+  classify-to-xlsx-docx:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -29,16 +28,26 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      # Cache HuggingFace + torch to avoid re-downloading embedding model
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/torch
+          key: hf-cache-${{ runner.os }}-v2
+
       - name: Install deps
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      - name: Run new_tran.py
+      - name: Run classify_weekly_onefile.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4o-mini
         run: |
-          python3 new_tran.py -c classification.txt
+          python3 classify_weekly_onefile.py -c classification.txt
 
       - name: Commit outputs (only translated files)
         run: |
