@@ -2,35 +2,47 @@
 """
 classify_weekly_onefile.py
 
-Single-file weekly classifier for GitHub Actions.
+Weekly pipeline:
+1) Pick latest weekly CSV in output/weekly (or -i).
+2) (Optional) GPT translate title/abstract into title_zh/abstract_zh unless --skip-translate.
+3) Hybrid classify:
+   - Parse category descriptions from classification.txt (format: 类别名：描述)
+   - Extract include/exclude keyword hints heuristically from “包括/不包括” segments
+   - Rule layer:
+       * If exclude keywords hit -> that category is blocked
+       * If include keywords hit strongly -> auto-assign (no GPT)
+   - Transformer semantic routing (sentence-transformers) to get topK candidates
+   - GPT final confirmation using by_id mapping output; retry missing ids once
+   - Second-missing ids go to a dedicated Excel sheet
+4) Output:
+   - output/weekly/<input_stem>_translated.xlsx (each category per sheet; items may repeat)
+   - output/weekly/<input_stem>_translated.docx (grouped by category blocks)
 
-What it does:
-1) Pick latest weekly CSV from output/weekly (or -i path).
-2) Build stable per-record ID (sha1 of link / fallback fields).
-3) Build text_for_classify = title + abstract(head+tail).
-4) 3-stage labeling:
-   A) Hard exclusion overrides (metal-air/flow/etc -> 其他储能器件; methanol/ammonia/hydrogen synthesis -> 氢氨醇 overrides CCUS)
-   B) Keyword strong routing (from classification.txt "关键词：" lists) + simple scoring
-   C) Transformer semantic routing (sentence-transformers embeddings) -> strong auto-label or weak candidates
-5) GPT by_id classification (only for unresolved items). Output mapping by_id, retry missing once.
-6) Postprocess exclusions again + choose primary label + review flags.
-7) Write XLSX with:
-   - one sheet per category
-   - 全部 / 未分类 / 待复核 / 仍缺失标签
-8) Write DOCX grouped by category (simple bilingual-ish: ZH fields if present; otherwise EN).
+Environment variables:
+  OPENAI_API_KEY (required)
+  OPENAI_MODEL (default gpt-4o-mini)
+  OPENAI_TEMPERATURE (default 0)
+  OPENAI_MAX_RETRIES (default 3)
+  OPENAI_BASE_URL (optional)
 
-Required files:
-- classification.txt (each line "类名：说明...关键词：k1, k2, ..."; you said you already updated and added “其他”)
-- requirements.txt should include:
-  pandas, openpyxl, python-docx, openai, sentence-transformers, scikit-learn, torch
+  # Translation
+  MAX_ABSTRACT_CHARS_TO_TRANSLATE (default 800)
+  TRANSLATE_BATCH_SIZE_TITLE (default 12)
+  TRANSLATE_BATCH_SIZE_ABSTRACT (default 3)
 
-Env:
-- OPENAI_API_KEY (required if GPT stage is used)
-- OPENAI_MODEL (default gpt-4o-mini)
+  # Classification
+  CLASSIFY_BATCH_SIZE (default 12)
+  KEYWORD_STRONG_HITS (default 2)   # include hits >= this -> auto-assign
+  TOPK_CANDIDATES (default 4)
+  EMB_STRONG_THRESHOLD (default 0.60)  # if top1 >= this -> auto-assign (if not blocked)
+  EMB_WEAK_THRESHOLD (default 0.45)    # candidates must be >= this
 
-Tips:
-- If you only want to test non-GPT routing: pass --skip-gpt
-- If you want GPT for all items: pass --force-gpt
+  # Embedding model
+  EMB_MODEL_NAME (default "sentence-transformers/all-MiniLM-L6-v2")
+
+Notes:
+- classification.txt is optimized for GPT; embeddings do NOT reliably “understand” negation,
+  so we strip "不包括..." part for embedding prototypes.
 """
 
 import argparse
@@ -39,9 +51,10 @@ import json
 import os
 import re
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 
 import pandas as pd
 from docx import Document
@@ -50,56 +63,35 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
-# -----------------------
-# Config (ENV + defaults)
-# -----------------------
-OPENAI_MODEL = (os.getenv("OPENAI_MODEL") or "").strip() or "gpt-4o-mini"
-OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0"))
-OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "3"))
-OPENAI_BASE_URL = (os.getenv("OPENAI_BASE_URL") or "").strip()
-
-CLASSIFY_BATCH_SIZE = int(os.getenv("CLASSIFY_BATCH_SIZE", "12"))
-GPT_RETRY_MISSING_ONCE = True
-
-TEXT_HEAD_CHARS = int(os.getenv("TEXT_HEAD_CHARS", "800"))
-TEXT_TAIL_CHARS = int(os.getenv("TEXT_TAIL_CHARS", "500"))
-TEXT_MAX_CHARS = int(os.getenv("TEXT_MAX_CHARS", "1600"))
-
-# Keyword routing thresholds
-KEYWORD_MIN_HITS_STRONG = int(os.getenv("KEYWORD_MIN_HITS_STRONG", "2"))  # >=2 hits -> strong route
-KEYWORD_MIN_HITS_WEAK = int(os.getenv("KEYWORD_MIN_HITS_WEAK", "1"))      # 1 hit -> weak (candidate)
-
-# Embedding routing thresholds (cosine similarity)
-EMB_STRONG_THRESHOLD = float(os.getenv("EMB_STRONG_THRESHOLD", "0.55"))
-EMB_WEAK_THRESHOLD = float(os.getenv("EMB_WEAK_THRESHOLD", "0.45"))
-EMB_TOPK_CANDIDATES = int(os.getenv("EMB_TOPK_CANDIDATES", "3"))
-
-# Review threshold (only meaningful if GPT returns confidence; we also derive confidence from routing)
-REVIEW_CONFIDENCE_THRESHOLD = float(os.getenv("REVIEW_CONFIDENCE_THRESHOLD", "0.55"))
-
-DEFAULT_CLASSIFICATION_FILE = os.getenv("CLASSIFICATION_FILE", "classification.txt")
-
-DEFAULT_INPUT_DIR = os.getenv("WEEKLY_DIR", "output/weekly")
-DEFAULT_DEBUG_DIR = os.getenv("DEBUG_DIR", "output/debug")
-
-# Sheets
-SHEET_ALL = "全部"
-SHEET_UNLABELED = "未分类"
-SHEET_REVIEW = "待复核"
-SHEET_STILL_MISSING = "仍缺失标签"
 
 print("[boot] classify_weekly_onefile.py started", flush=True)
 
+# ============================
+# OpenAI configuration
+# ============================
+OPENAI_MODEL = (os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0"))
+OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "3"))
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip()
 
-# -----------------------
-# Helpers
-# -----------------------
-def _normalize_cell(v) -> str:
-    if v is None:
-        return ""
-    return str(v).strip()
+MAX_ABSTRACT_CHARS_TO_TRANSLATE = int(os.getenv("MAX_ABSTRACT_CHARS_TO_TRANSLATE", "800"))
+TRANSLATE_BATCH_SIZE_TITLE = int(os.getenv("TRANSLATE_BATCH_SIZE_TITLE", "12"))
+TRANSLATE_BATCH_SIZE_ABSTRACT = int(os.getenv("TRANSLATE_BATCH_SIZE_ABSTRACT", "3"))
+
+CLASSIFY_BATCH_SIZE = int(os.getenv("CLASSIFY_BATCH_SIZE", "12"))
+KEYWORD_STRONG_HITS = int(os.getenv("KEYWORD_STRONG_HITS", "2"))
+TOPK_CANDIDATES = int(os.getenv("TOPK_CANDIDATES", "4"))
+EMB_STRONG_THRESHOLD = float(os.getenv("EMB_STRONG_THRESHOLD", "0.60"))
+EMB_WEAK_THRESHOLD = float(os.getenv("EMB_WEAK_THRESHOLD", "0.45"))
+
+EMB_MODEL_NAME = os.getenv("EMB_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2").strip()
+
+DEFAULT_CLASSIFICATION_FILE = "classification.txt"
 
 
+# ============================
+# Utils
+# ============================
 def _fmt_secs(s: float) -> str:
     s = max(0, int(s))
     h = s // 3600
@@ -114,7 +106,13 @@ def _fmt_secs(s: float) -> str:
 
 def _chunked(items, n):
     for i in range(0, len(items), n):
-        yield items[i:i + n]
+        yield items[i: i + n]
+
+
+def _normalize_cell(v) -> str:
+    if v is None:
+        return ""
+    return str(v).strip()
 
 
 def _clean_json_text(s: str) -> str:
@@ -125,34 +123,19 @@ def _clean_json_text(s: str) -> str:
     return s.strip()
 
 
-def _safe_sheet_name(name: str, used: set) -> str:
-    base = re.sub(r"[\\/*?:\[\]]", "_", _normalize_cell(name)) or "Sheet"
-    base = base[:31]
-    candidate = base
-    i = 2
-    while candidate in used:
-        suffix = f"_{i}"
-        candidate = base[: 31 - len(suffix)] + suffix
-        i += 1
-    used.add(candidate)
-    return candidate
+def _stable_id_from_row(row: Dict[str, Any]) -> str:
+    """
+    Prefer stable id from link. Fallback to title+source+published.
+    """
+    link = _normalize_cell(row.get("link", ""))
+    title = _normalize_cell(row.get("title", ""))
+    source = _normalize_cell(row.get("source", ""))
+    pub = _normalize_cell(row.get("pub_date", "")) or _normalize_cell(row.get("published", ""))
+    base = link if link else f"{title}||{source}||{pub}"
+    h = hashlib.sha1(base.encode("utf-8", errors="ignore")).hexdigest()[:16]
+    return h
 
 
-def _dump_debug(tag: str, payload: dict, raw_text: str = "", reason: str = ""):
-    outdir = Path(DEFAULT_DEBUG_DIR)
-    outdir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    stem = f"{tag}_{ts}_{hashlib.sha1((reason+raw_text).encode('utf-8', errors='ignore')).hexdigest()[:8]}"
-    (outdir / f"{stem}_reason.txt").write_text(reason or "", encoding="utf-8")
-    (outdir / f"{stem}_payload.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    if raw_text:
-        (outdir / f"{stem}_raw.txt").write_text(raw_text, encoding="utf-8")
-    print(f"[debug] dumped to {outdir.resolve()}", flush=True)
-
-
-# -----------------------
-# Input discovery
-# -----------------------
 def _extract_date_from_name(filename: str):
     stem = Path(filename).stem
     m = re.search(r"(\d{4})[-_]?(\d{2})[-_]?(\d{2})", stem)
@@ -165,7 +148,7 @@ def _extract_date_from_name(filename: str):
         return None
 
 
-def pick_latest_weekly_csv(folder: str) -> Path:
+def pick_latest_weekly_csv(folder="output/weekly") -> Path:
     folder = Path(folder)
     if not folder.exists():
         raise FileNotFoundError(f"Folder not found: {folder.resolve()}")
@@ -181,7 +164,8 @@ def pick_latest_weekly_csv(folder: str) -> Path:
     if not candidates:
         raise FileNotFoundError(f"No weekly CSV found in {folder.resolve()}")
 
-    with_dates, without_dates = [], []
+    with_dates = []
+    without_dates = []
     for p in candidates:
         d = _extract_date_from_name(p.name)
         if d is not None:
@@ -209,11 +193,6 @@ def ensure_base_columns(df: pd.DataFrame) -> pd.DataFrame:
         "title_zh",
         "abstract_zh",
         "categories",
-        "id",
-        "primary_category",
-        "confidence",
-        "route",
-        "need_review",
     ]
     for c in needed:
         if c not in df.columns:
@@ -222,562 +201,703 @@ def ensure_base_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def make_stable_id(row: dict) -> str:
-    link = _normalize_cell(row.get("link", ""))
-    if link:
-        base = link
-    else:
-        base = "|".join([
-            _normalize_cell(row.get("title", "")),
-            _normalize_cell(row.get("source", "")),
-            _normalize_cell(row.get("pub_date", "")) or _normalize_cell(row.get("published", "")),
-        ])
-    base = base.strip() or json.dumps(row, ensure_ascii=False)
-    return hashlib.sha1(base.encode("utf-8", errors="ignore")).hexdigest()[:12]
-
-
-# -----------------------
-# Text prep
-# -----------------------
-def strip_leading_abstract(text: str) -> str:
-    if not text:
-        return text
-    s = text.lstrip()
-    return re.sub(r"^(abstract)\s*[:.\-–—]*\s*", "", s, flags=re.IGNORECASE)
-
-
-def build_text_for_classify(title: str, abstract: str) -> str:
+def build_text_for_classify(title: str, abstract: str, max_chars: int = 1600) -> str:
+    """
+    Keep it short-ish for embedding / GPT. Prefer abstract, fallback title.
+    """
     title = _normalize_cell(title)
     abstract = _normalize_cell(abstract)
-    abstract = strip_leading_abstract(abstract)
-
-    if not abstract:
-        text = title
+    if abstract:
+        t = abstract
     else:
-        a = abstract.replace("\r\n", "\n").replace("\r", "\n")
-        a = re.sub(r"\s+", " ", a).strip()
-        head = a[:TEXT_HEAD_CHARS]
-        tail = a[-TEXT_TAIL_CHARS:] if len(a) > TEXT_HEAD_CHARS else ""
-        parts = [title] if title else []
-        if head:
-            parts.append(head)
-        if tail and tail != head:
-            parts.append("... " + tail)
-        text = "\n".join([p for p in parts if p])
+        t = title
 
-    text = text.strip()
-    if len(text) > TEXT_MAX_CHARS:
-        text = text[:TEXT_MAX_CHARS]
-    return text
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= max_chars:
+        return t
+    # head + tail
+    head = t[: max_chars // 2]
+    tail = t[-max_chars // 2:]
+    return head + " ... " + tail
 
 
-# -----------------------
-# classification.txt parsing (names + desc + keywords)
-# -----------------------
-def parse_classification_file(path: str) -> Tuple[List[str], Dict[str, str], Dict[str, List[str]]]:
-    """
-    Returns:
-      ordered_categories: [cat1, cat2, ...]
-      cat_desc: {cat: desc_text}
-      cat_keywords: {cat: [kw1, kw2, ...]} (parsed from "关键词：")
-    """
-    p = Path(path)
-    if not p.exists():
-        raise FileNotFoundError(f"classification file not found: {p.resolve()}")
-
-    ordered = []
-    desc_map = {}
-    kw_map: Dict[str, List[str]] = {}
-
-    for raw in p.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        # split "类名：..."
-        if "：" in line:
-            name, rest = line.split("：", 1)
-        elif ":" in line:
-            name, rest = line.split(":", 1)
-        else:
-            name, rest = line, ""
-
-        cat = name.strip()
-        if not cat:
-            continue
-
-        # Extract keywords (关键词：...)
-        rest_clean = rest.strip()
-        kws = []
-        m = re.search(r"(关键词|keywords)\s*[:：]\s*(.+)$", rest_clean, flags=re.IGNORECASE)
-        if m:
-            kw_part = m.group(2).strip()
-            # Split by commas / Chinese commas / semicolons
-            kws = [x.strip() for x in re.split(r"[，,;；\n]+", kw_part) if x.strip()]
-            # Remove trailing punctuation
-            kws = [re.sub(r"[。\.]+$", "", x) for x in kws]
-
-            # Description is text before keywords marker
-            desc_text = rest_clean[:m.start()].strip()
-        else:
-            desc_text = rest_clean
-
-        ordered.append(cat)
-        desc_map[cat] = desc_text
-        kw_map[cat] = kws
-
-    if not ordered:
-        raise RuntimeError("No valid categories parsed from classification.txt")
-
-    return ordered, desc_map, kw_map
-
-
-# -----------------------
-# Deterministic exclusion / override rules (hard-coded)
-# -----------------------
-# Strong signals for "其他储能器件" (exclude Li-ion components)
-PAT_OTHER_STORAGE = [
-    r"\bmetal[- ]air\b",
-    r"\bli[- ]air\b",
-    r"\bzn[- ]air\b",
-    r"\b(al|zn|li|na|k|mg|ca)[- ]air\b",
-    r"\bmetal[- ]oxygen\b",
-    r"\boxygen battery\b",
-    r"\bmetal[- ]co2\b",
-    r"\bco2 battery\b",
-    r"\bflow battery\b",
-    r"\bredox flow\b",
-    r"\bvanadium flow\b",
-    r"\blead[- ]acid\b",
-    r"\b(supercapacitor|ultracapacitor)\b",
-]
-
-# Strong signals for "氢氨醇" that should override CCUS
-PAT_HAM_STRONG = [
-    r"\bwater electrolysis\b",
-    r"\belectrolyser\b",
-    r"\bgreen hydrogen\b",
-    r"\bhydrogen production\b",
-    r"\bammonia synthesis\b",
-    r"\bhaber[- ]bosch\b",
-    r"\bmethanol synthesis\b",
-    r"\bco2 hydrogenation\b.*\bmethanol\b",
-    r"\bpower[- ]to[- ]x\b",
-    r"\bpower[- ]to[- ]ammonia\b",
-    r"\bpower[- ]to[- ]methanol\b",
-]
-
-# Strong signals for CCUS capture/storage (non-HAM)
-PAT_CCUS_STRONG = [
-    r"\bcarbon capture\b",
-    r"\bco2 capture\b",
-    r"\bdirect air capture\b",
-    r"\bdac\b",
-    r"\bco2 storage\b",
-    r"\bgeologic(al)? storage\b",
-    r"\bamine sorbent\b",
-    r"\bcarbon mineralization\b",
-    r"\bco2 mineralization\b",
-]
-
-
-def _regex_any(patterns: List[str], text: str) -> bool:
-    for pat in patterns:
-        if re.search(pat, text, flags=re.IGNORECASE):
-            return True
-    return False
-
-
-def apply_hard_overrides(text: str, labels: List[str], ordered_categories: List[str]) -> Tuple[List[str], Optional[str]]:
-    """
-    Apply deterministic override rules.
-    Returns (new_labels, reason_if_changed)
-    """
-    t = text or ""
-    changed_reason = None
-    new = list(labels or [])
-
-    # Force other storage if strong match
-    if _regex_any(PAT_OTHER_STORAGE, t):
-        # Keep only "其他储能器件" if it exists in your classification
-        if "其他储能器件" in ordered_categories:
-            new = ["其他储能器件"]
-            changed_reason = "hard_override:other_storage"
-            return new, changed_reason
-
-    # HAM overrides CCUS if HAM strong
-    if _regex_any(PAT_HAM_STRONG, t):
-        if "氢氨醇" in ordered_categories:
-            if "CCUS" in new:
-                new = [x for x in new if x != "CCUS"]
-            if "氢氨醇" not in new:
-                new.append("氢氨醇")
-            changed_reason = "hard_override:ham_over_ccus"
-            return new, changed_reason
-
-    # If CCUS signals exist and no HAM strong, gently add CCUS if missing
-    if _regex_any(PAT_CCUS_STRONG, t) and not _regex_any(PAT_HAM_STRONG, t):
-        if "CCUS" in ordered_categories and "CCUS" not in new:
-            new.append("CCUS")
-            changed_reason = "hard_add:ccus"
-            return new, changed_reason
-
-    return new, changed_reason
-
-
-# -----------------------
-# Keyword routing (from classification keywords)
-# -----------------------
-def keyword_route(text: str, ordered_categories: List[str], cat_keywords: Dict[str, List[str]]) -> Tuple[List[str], float, str]:
-    """
-    Returns (labels, confidence, route_tag)
-    labels empty means no strong decision.
-    """
-    t = (text or "").lower()
-    if not t:
-        return [], 0.0, "kw:none"
-
-    # special: if hard other-storage patterns match, skip kw and let hard overrides handle
-    if _regex_any(PAT_OTHER_STORAGE, t):
-        return [], 0.0, "kw:skip_other_storage"
-
-    scores: Dict[str, int] = {c: 0 for c in ordered_categories}
-    hits_detail: Dict[str, List[str]] = {c: [] for c in ordered_categories}
-
-    for cat in ordered_categories:
-        kws = cat_keywords.get(cat, []) or []
-        if not kws:
-            continue
-        for kw in kws:
-            k = kw.strip()
-            if not k:
-                continue
-            # simple contains match; for very short keywords, require word boundary
-            if len(k) <= 3 and re.search(rf"\b{re.escape(k.lower())}\b", t):
-                scores[cat] += 1
-                hits_detail[cat].append(k)
-            else:
-                if k.lower() in t:
-                    scores[cat] += 1
-                    hits_detail[cat].append(k)
-
-    # pick best
-    best_cat = max(scores, key=lambda c: scores[c])
-    best_score = scores[best_cat]
-    if best_score < KEYWORD_MIN_HITS_WEAK:
-        return [], 0.0, "kw:none"
-
-    # check tie
-    tied = [c for c, s in scores.items() if s == best_score and s > 0]
-    if len(tied) > 1:
-        # tie -> weak candidates only
-        return [], 0.0, f"kw:tie({','.join(tied[:3])})"
-
-    # strong route
-    if best_score >= KEYWORD_MIN_HITS_STRONG:
-        conf = min(0.92, 0.70 + 0.08 * best_score)
-        return [best_cat], conf, f"kw:strong({best_cat}:{best_score})"
-
-    # weak: treat as candidate (not final) -> return empty labels but route info
-    return [], 0.0, f"kw:weak_candidate({best_cat}:{best_score})"
-
-
-def keyword_candidates(text: str, ordered_categories: List[str], cat_keywords: Dict[str, List[str]], topk: int = 3) -> List[str]:
-    t = (text or "").lower()
-    if not t:
-        return []
-    scores: Dict[str, int] = {}
-    for cat in ordered_categories:
-        score = 0
-        for kw in (cat_keywords.get(cat, []) or []):
-            k = kw.strip()
-            if not k:
-                continue
-            if len(k) <= 3:
-                if re.search(rf"\b{re.escape(k.lower())}\b", t):
-                    score += 1
-            else:
-                if k.lower() in t:
-                    score += 1
-        if score > 0:
-            scores[cat] = score
-    if not scores:
-        return []
-    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    return [c for c, _ in ranked[:topk]]
-
-
-# -----------------------
-# Transformer semantic routing (SentenceTransformer + cosine sim)
-# -----------------------
-def try_load_embedder():
-    try:
-        from sentence_transformers import SentenceTransformer  # type: ignore
-        return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    except Exception as e:
-        print(f"[embed] disabled (failed to load sentence-transformers model): {e}", flush=True)
-        return None
-
-
-def cosine_sim_matrix(a, b):
-    # a: (n,d), b: (m,d)
-    try:
-        from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
-        return cosine_similarity(a, b)
-    except Exception:
-        # fallback pure python
-        import math
-        out = []
-        for va in a:
-            row = []
-            na = math.sqrt(sum(x * x for x in va)) + 1e-12
-            for vb in b:
-                nb = math.sqrt(sum(x * x for x in vb)) + 1e-12
-                dot = sum(x * y for x, y in zip(va, vb))
-                row.append(dot / (na * nb))
-            out.append(row)
-        return out
-
-
-def build_category_prototypes(ordered_categories: List[str], cat_desc: Dict[str, str], cat_keywords: Dict[str, List[str]]) -> List[str]:
-    protos = []
-    for c in ordered_categories:
-        desc = _normalize_cell(cat_desc.get(c, ""))
-        kws = cat_keywords.get(c, []) or []
-        # Prototype: "类名：desc 关键词：k1, k2, ..."
-        if kws:
-            proto = f"{c}：{desc} 关键词：{', '.join(kws[:50])}"
-        else:
-            proto = f"{c}：{desc}"
-        protos.append(proto.strip())
-    return protos
-
-
-def embedding_route_single(
-    text: str,
-    ordered_categories: List[str],
-    cat_emb,
-    embedder,
-) -> Tuple[List[str], float, str, List[Tuple[str, float]]]:
-    """
-    Returns (final_labels, confidence, route_tag, top_scores)
-    - if strong: final_labels = [top1]
-    - else final_labels = []
-    """
-    if not embedder or cat_emb is None:
-        return [], 0.0, "emb:disabled", []
-
-    if not text:
-        return [], 0.0, "emb:empty", []
-
-    emb = embedder.encode([text], normalize_embeddings=True)
-    sims = cosine_sim_matrix(emb, cat_emb)[0]  # list of floats
-    pairs = list(zip(ordered_categories, sims))
-    pairs.sort(key=lambda x: x[1], reverse=True)
-
-    top1_cat, top1 = pairs[0]
-    tag = f"emb:top1({top1_cat}:{top1:.3f})"
-
-    if top1 >= EMB_STRONG_THRESHOLD:
-        # strong auto label
-        conf = min(0.90, 0.55 + (top1 - EMB_STRONG_THRESHOLD) * 0.8)
-        return [top1_cat], conf, f"emb:strong({top1_cat}:{top1:.3f})", pairs[:5]
-
-    return [], 0.0, tag, pairs[:5]
-
-
-def embedding_candidates(
-    text: str,
-    ordered_categories: List[str],
-    cat_emb,
-    embedder,
-    topk: int = 3,
-) -> List[str]:
-    if not embedder or cat_emb is None or not text:
-        return []
-    emb = embedder.encode([text], normalize_embeddings=True)
-    sims = cosine_sim_matrix(emb, cat_emb)[0]
-    pairs = list(zip(ordered_categories, sims))
-    pairs.sort(key=lambda x: x[1], reverse=True)
-    # only keep those above weak threshold
-    out = [c for c, s in pairs[:max(topk, 1)] if s >= EMB_WEAK_THRESHOLD]
-    return out[:topk]
-
-
-# -----------------------
-# OpenAI GPT by_id classification (with candidates)
-# -----------------------
+# ============================
+# OpenAI client
+# ============================
 def _build_openai_client():
-    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError(
-            "Missing OPENAI_API_KEY. Add it in GitHub repo Settings -> Secrets and variables -> Actions."
+            "Missing OPENAI_API_KEY in environment. "
+            "For GitHub Actions, add it in repo Settings -> Secrets and variables -> Actions."
         )
-    from openai import OpenAI  # type: ignore
+
+    from openai import OpenAI
 
     if OPENAI_BASE_URL:
         return OpenAI(api_key=api_key, base_url=OPENAI_BASE_URL)
     return OpenAI(api_key=api_key)
 
 
-def _openai_chat_complete(client, messages):
-    return client.chat.completions.create(
+def _openai_chat_complete(client, messages, json_object: bool = True):
+    kwargs = dict(
         model=OPENAI_MODEL,
         messages=messages,
         temperature=OPENAI_TEMPERATURE,
-        response_format={"type": "json_object"},
     )
+    # Force JSON if requested
+    if json_object:
+        kwargs["response_format"] = {"type": "json_object"}
+    return client.chat.completions.create(**kwargs)
 
 
 def _extract_content(resp) -> str:
     return resp.choices[0].message.content
 
 
-def _call_with_retries(client, messages, label: str):
+def _call_with_retries(client, messages, label: str, json_object: bool = True):
     last_err = None
     for attempt in range(1, OPENAI_MAX_RETRIES + 1):
         try:
-            return _openai_chat_complete(client, messages)
+            return _openai_chat_complete(client, messages, json_object=json_object)
         except Exception as e:
             last_err = e
             wait = min(10, 2 * attempt)
-            print(f"[openai:{label}] error attempt {attempt}: {e} (wait {wait}s)", flush=True)
+            print(f"[openai:{label}] error on attempt {attempt}: {e} (wait {wait}s)", flush=True)
             time.sleep(wait)
     raise RuntimeError(f"OpenAI request failed after {OPENAI_MAX_RETRIES} attempts: {last_err}")
 
 
-def gpt_classify_by_id(
-    client,
-    ordered_categories: List[str],
-    cat_desc: Dict[str, str],
-    items: List[dict],
-    candidates_by_id: Optional[Dict[str, List[str]]] = None,
-    tag: str = "gpt_classify",
-) -> Tuple[Dict[str, List[str]], Dict[str, float], str]:
-    """
-    items: [{id,title,text}, ...]
-    returns:
-      labels_by_id: {id: [cat,...]} (may be missing some ids)
-      conf_by_id: {id: float} (optional; missing => not provided)
-      raw_response_text
-    """
-    allowed = ordered_categories
-    allowed_set = set(allowed)
+# ============================
+# Classification rules parsing
+# ============================
+@dataclass
+class CategoryRule:
+    name: str
+    desc_gpt: str          # full (with 不包括)
+    desc_embed: str        # stripped (remove 不包括 segment)
+    include_terms: List[str]  # extracted from 包括... segment (heuristic)
+    exclude_terms: List[str]  # extracted from 不包括... segment (heuristic)
 
-    # Make a compact categories block
-    cats_block = "\n".join([f"- {c}: {cat_desc.get(c,'')}" for c in allowed])
 
-    # Attach candidates if present
-    payload_items = []
-    for it in items:
-        _id = str(it["id"])
-        obj = {
-            "id": _id,
-            "title": it.get("title", ""),
-            "text": it.get("text", ""),
-        }
-        if candidates_by_id and candidates_by_id.get(_id):
-            obj["candidates"] = candidates_by_id[_id]
-        payload_items.append(obj)
+def _split_desc_for_embed(desc: str) -> str:
+    """
+    Embedding should not consume negation too much; remove "不包括" tail if present.
+    """
+    if not desc:
+        return ""
+    # Split on first occurrence of 不包括 / 不包含
+    m = re.split(r"(不包括|不包含)", desc, maxsplit=1)
+    if len(m) >= 3:
+        return m[0].strip()
+    return desc.strip()
+
+
+def _extract_terms_after_marker(desc: str, marker: str) -> List[str]:
+    """
+    Heuristic term extraction from Chinese descriptions like:
+      "包括A、B、C... 不包括X、Y..."
+    marker: "包括" or "不包括"
+    Returns a list of short phrases (Chinese or English) used for keyword routing/blocking.
+    """
+    if not desc or marker not in desc:
+        return []
+    # take substring after first marker
+    idx = desc.find(marker)
+    sub = desc[idx + len(marker):]
+
+    # stop at next marker to avoid mixing
+    stop_markers = ["不包括", "不包含"] if marker == "包括" else []
+    for sm in stop_markers:
+        j = sub.find(sm)
+        if j != -1:
+            sub = sub[:j]
+            break
+
+    # stop at sentence end markers
+    sub = re.split(r"[。；;\n]", sub, maxsplit=1)[0]
+    # remove leading punctuation
+    sub = sub.strip(" ：:，,")
+    if not sub:
+        return []
+
+    # split on common separators
+    parts = re.split(r"[、，,/\|]+", sub)
+    out = []
+    for p in parts:
+        t = p.strip()
+        if not t:
+            continue
+        # remove bracketed clarifications
+        t = re.sub(r"（.*?）", "", t).strip()
+        t = re.sub(r"\(.*?\)", "", t).strip()
+        if not t:
+            continue
+        # keep reasonable length
+        if len(t) < 2:
+            continue
+        # cap
+        if len(t) > 60:
+            t = t[:60]
+        out.append(t)
+    # de-dup preserve order
+    seen = set()
+    dedup = []
+    for t in out:
+        if t.lower() in seen:
+            continue
+        seen.add(t.lower())
+        dedup.append(t)
+    return dedup
+
+
+def load_classification_rules(path: str) -> List[CategoryRule]:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"classification file not found: {p.resolve()}")
+
+    rules: List[CategoryRule] = []
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "：" in line:
+            name, desc = line.split("：", 1)
+        elif ":" in line:
+            name, desc = line.split(":", 1)
+        else:
+            name, desc = line, ""
+        name = name.strip()
+        desc = desc.strip()
+        if not name:
+            continue
+
+        desc_gpt = desc
+        desc_embed = _split_desc_for_embed(desc)
+
+        include_terms = _extract_terms_after_marker(desc, "包括")
+        exclude_terms = _extract_terms_after_marker(desc, "不包括") + _extract_terms_after_marker(desc, "不包含")
+
+        rules.append(CategoryRule(
+            name=name,
+            desc_gpt=desc_gpt,
+            desc_embed=desc_embed,
+            include_terms=include_terms,
+            exclude_terms=exclude_terms,
+        ))
+
+    if not rules:
+        raise RuntimeError(f"No valid category lines parsed from {p.resolve()}")
+    return rules
+
+
+# ============================
+# Keyword gating (include/exclude)
+# ============================
+def _count_term_hits(text: str, terms: List[str]) -> int:
+    """
+    Count how many distinct terms appear in text (case-insensitive).
+    """
+    if not text or not terms:
+        return 0
+    t = text.lower()
+    hits = 0
+    for term in terms:
+        term_l = term.lower()
+        if not term_l:
+            continue
+        # avoid ultra-common noise
+        if len(term_l) <= 2:
+            continue
+        if term_l in t:
+            hits += 1
+    return hits
+
+
+def _any_term_hit(text: str, terms: List[str]) -> bool:
+    return _count_term_hits(text, terms) > 0
+
+
+# ============================
+# Transformer semantic routing
+# ============================
+def _load_embedder():
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer(EMB_MODEL_NAME)
+
+
+def _cosine_sim_matrix(a, b):
+    """
+    a: (n,d) normalized; b: (m,d) normalized
+    return (n,m)
+    """
+    import numpy as np
+    return a @ b.T
+
+
+# ============================
+# GPT translation
+# ============================
+def translate_texts(client, texts, label: str) -> List[str]:
+    if not texts:
+        return []
 
     system = (
-        "You are an expert literature classifier. "
-        "Classify each paper into the given categories. Use abstract/text first, title as fallback. "
-        "Multi-label is allowed. Do not invent category names."
+        "You are a professional scientific translator. "
+        "Translate English into Simplified Chinese. Preserve abbreviations, formulas, proper nouns, and units."
     )
     user = (
+        "Return ONLY JSON in this schema: {\"translations\": [\"...\", \"...\"]}\n"
+        "Array length must equal input length and order must match.\n"
+        f"inputs={json.dumps(texts, ensure_ascii=False)}"
+    )
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    resp = _call_with_retries(client, messages, f"translate:{label}", json_object=True)
+    content = _clean_json_text(_extract_content(resp))
+
+    try:
+        data = json.loads(content)
+        out = data.get("translations", [])
+    except Exception:
+        out = []
+
+    if not isinstance(out, list) or len(out) != len(texts):
+        raise RuntimeError(f"Translation output invalid for {label}.")
+    return [str(x) for x in out]
+
+
+def enrich_translation(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df = ensure_base_columns(df)
+
+    need_title_idx = df.index[(df["title"].str.strip() != "") & (df["title_zh"].str.strip() == "")].tolist()
+    need_abs_idx = df.index[(df["abstract"].str.strip() != "") & (df["abstract_zh"].str.strip() == "")].tolist()
+
+    print(f"[plan] titles to translate: {len(need_title_idx)}", flush=True)
+    print(f"[plan] abstracts to translate: {len(need_abs_idx)} (truncate={MAX_ABSTRACT_CHARS_TO_TRANSLATE} chars)", flush=True)
+
+    if not need_title_idx and not need_abs_idx:
+        print("[plan] nothing to translate", flush=True)
+        return df
+
+    client = _build_openai_client()
+
+    if need_title_idx:
+        titles = df.loc[need_title_idx, "title"].tolist()
+        translated = []
+        start = time.time()
+        total = len(titles)
+        for batch in _chunked(titles, TRANSLATE_BATCH_SIZE_TITLE):
+            translated.extend(translate_texts(client, batch, "title"))
+            done = len(translated)
+            elapsed = time.time() - start
+            rate = done / elapsed if elapsed > 0 else 0.0
+            eta = (total - done) / rate if rate > 0 else 0.0
+            print(f"[translate:title] {done}/{total} | elapsed={_fmt_secs(elapsed)} | rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}", flush=True)
+        df.loc[need_title_idx, "title_zh"] = translated
+
+    if need_abs_idx:
+        abstracts = df.loc[need_abs_idx, "abstract"].tolist()
+        clipped = []
+        for x in abstracts:
+            x = _normalize_cell(x)
+            if len(x) > MAX_ABSTRACT_CHARS_TO_TRANSLATE:
+                x = x[:MAX_ABSTRACT_CHARS_TO_TRANSLATE]
+            clipped.append(x)
+
+        translated = []
+        start = time.time()
+        total = len(clipped)
+        for batch in _chunked(clipped, TRANSLATE_BATCH_SIZE_ABSTRACT):
+            translated.extend(translate_texts(client, batch, "abstract"))
+            done = len(translated)
+            elapsed = time.time() - start
+            rate = done / elapsed if elapsed > 0 else 0.0
+            eta = (total - done) / rate if rate > 0 else 0.0
+            print(f"[translate:abstract] {done}/{total} | elapsed={_fmt_secs(elapsed)} | rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}", flush=True)
+        df.loc[need_abs_idx, "abstract_zh"] = translated
+
+    return df
+
+
+# ============================
+# GPT classification (by_id mapping)
+# ============================
+def gpt_classify_by_id(
+    client,
+    rules: List[CategoryRule],
+    items: List[Dict[str, Any]],
+    label: str,
+) -> Dict[str, List[str]]:
+    """
+    items: list of {id, title, text, candidates(optional list[str])}
+    Return: {id: [labels]}
+    """
+    categories_block = "\n".join([f"- {r.name}: {r.desc_gpt}" for r in rules])
+    category_names = [r.name for r in rules]
+    allowed_set = set(category_names)
+
+    system = (
+        "You are an expert literature classifier.\n"
+        "Classify each paper by the given category definitions.\n"
+        "Key rules:\n"
+        "1) Use abstract first; if missing, use title.\n"
+        "2) Multi-label is allowed, but only when clearly justified.\n"
+        "3) DO NOT classify solely by a material name (e.g., 'perovskite'). Classify by application/system.\n"
+        "4) If the article does not clearly match any category definition, return empty labels [].\n"
+        "5) If candidates are provided for an item, you MUST choose labels only from candidates (or []).\n"
+        "6) Output MUST be valid JSON object. No extra keys.\n"
+    )
+
+    user = (
         "分类规则（类别名: 说明）:\n"
-        f"{cats_block}\n\n"
-        "任务要求（非常重要）:\n"
-        "1) 必须只使用给定类别名（不可发明/改写）。\n"
-        "2) 每条必须输出，即使不匹配也要输出空数组 []。\n"
-        "3) 输出必须是 JSON 且严格为：\n"
-        "   {\"by_id\": {\"<id>\": {\"labels\": [\"类A\",\"类B\"], \"confidence\": 0.0}}}\n"
-        "   其中 confidence 取 0~1。\n"
-        "4) 如果提供 candidates 字段，请优先从 candidates 中选择；若 candidates 都不合适，可返回 []。\n\n"
-        f"输入条目:\n{json.dumps(payload_items, ensure_ascii=False)}"
+        f"{categories_block}\n\n"
+        "请返回严格JSON：\n"
+        "{\n"
+        "  \"by_id\": {\n"
+        "    \"<id>\": {\"labels\": [\"类别A\",\"类别B\"], \"confidence\": 0.0}\n"
+        "  }\n"
+        "}\n\n"
+        "要求：\n"
+        "- by_id 必须覆盖输入中所有 id。\n"
+        "- labels 只能使用给定类别名；不匹配则 [].\n"
+        "- confidence 为 0~1 的数字（可粗略）。\n\n"
+        f"输入条目：{json.dumps(items, ensure_ascii=False)}"
     )
 
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    resp = _call_with_retries(client, messages, tag)
-    raw = _clean_json_text(_extract_content(resp))
-
-    labels_by_id: Dict[str, List[str]] = {}
-    conf_by_id: Dict[str, float] = {}
+    resp = _call_with_retries(client, messages, f"classify:{label}", json_object=True)
+    content = _clean_json_text(_extract_content(resp))
 
     try:
-        data = json.loads(raw)
-    except Exception as e:
-        _dump_debug(tag, {"items": payload_items}, raw_text=raw, reason=f"json.loads failed: {e}")
-        return labels_by_id, conf_by_id, raw
+        data = json.loads(content)
+        by_id = data.get("by_id", {})
+    except Exception:
+        by_id = {}
 
-    by_id = data.get("by_id", {})
-    if not isinstance(by_id, dict):
-        _dump_debug(tag, {"items": payload_items, "parsed": data}, raw_text=raw, reason="by_id not a dict")
-        return labels_by_id, conf_by_id, raw
+    out: Dict[str, List[str]] = {}
+    if isinstance(by_id, dict):
+        for _id, obj in by_id.items():
+            if not isinstance(obj, dict):
+                continue
+            labels = obj.get("labels", [])
+            if not isinstance(labels, list):
+                labels = []
+            clean = []
+            for c in labels:
+                c = _normalize_cell(c)
+                if c in allowed_set:
+                    clean.append(c)
+            # de-dup preserve order
+            out[_id] = list(dict.fromkeys(clean))
 
-    for k, v in by_id.items():
-        _id = _normalize_cell(k)
-        if not _id:
-            continue
-        if isinstance(v, dict):
-            labs = v.get("labels", [])
-            conf = v.get("confidence", None)
+    return out
+
+
+# ============================
+# Hybrid classification orchestrator
+# ============================
+def classify_hybrid(
+    df: pd.DataFrame,
+    rules: List[CategoryRule],
+    debug_dir: Path,
+    skip_gpt: bool = False,
+) -> Tuple[pd.DataFrame, List[List[str]], List[str]]:
+    """
+    Returns:
+      df_out with categories column
+      labels_list: per-row labels list aligned to df rows
+      still_missing_ids: ids missing labels after 2 GPT rounds
+    """
+    df = df.copy()
+    df = ensure_base_columns(df)
+
+    # Build items
+    records = df.to_dict(orient="records")
+    ids = [_stable_id_from_row(r) for r in records]
+    df["stable_id"] = ids
+
+    texts = [build_text_for_classify(r.get("title", ""), r.get("abstract", "")) for r in records]
+    titles = [_normalize_cell(r.get("title", "")) for r in records]
+
+    cat_names = [r.name for r in rules]
+    name_to_rule = {r.name: r for r in rules}
+
+    # Rule layer: exclude blocking + include strong assign
+    blocked: List[set] = [set() for _ in records]
+    include_hits: List[Dict[str, int]] = [dict() for _ in records]
+    auto_labels: List[List[str]] = [[] for _ in records]   # from strong keyword or strong embedding
+    need_model_idx: List[int] = []
+
+    for i, text in enumerate(texts):
+        t = (titles[i] + " " + text).lower()
+
+        # compute block list
+        for r in rules:
+            if r.exclude_terms and _any_term_hit(t, r.exclude_terms):
+                blocked[i].add(r.name)
+
+        # include hit counts
+        for r in rules:
+            if r.include_terms:
+                hits = _count_term_hits(t, r.include_terms)
+                if hits > 0:
+                    include_hits[i][r.name] = hits
+
+        # strong include => auto label (exclude has priority)
+        strong = [cn for cn, h in include_hits[i].items() if h >= KEYWORD_STRONG_HITS and cn not in blocked[i]]
+        # keep order by rules list order
+        strong_sorted = [cn for cn in cat_names if cn in strong]
+        if strong_sorted:
+            auto_labels[i] = strong_sorted
         else:
-            labs = v
-            conf = None
+            need_model_idx.append(i)
 
-        if not isinstance(labs, list):
-            labs = []
-        clean = []
+    print(f"[gate] auto-labeled by keyword strong: {sum(1 for x in auto_labels if x)} / {len(records)}", flush=True)
+
+    # Transformer semantic routing for remaining
+    embedder = _load_embedder()
+
+    # Build category prototype texts (embedding-friendly, no 不包括 tail)
+    proto_texts = []
+    for r in rules:
+        # keep it positive and compact
+        t = f"{r.name}。{r.desc_embed}"
+        # remove "不包括" if any remained
+        t = _split_desc_for_embed(t)
+        proto_texts.append(t.strip())
+
+    # Compute embeddings
+    import numpy as np
+
+    start = time.time()
+    proto_emb = embedder.encode(proto_texts, normalize_embeddings=True, show_progress_bar=False)
+    item_emb = embedder.encode([titles[i] + " " + texts[i] for i in range(len(records))],
+                               normalize_embeddings=True, show_progress_bar=True)
+
+    sims = _cosine_sim_matrix(np.array(item_emb), np.array(proto_emb))  # (n, C)
+    print(f"[embed] computed sims in {_fmt_secs(time.time()-start)}", flush=True)
+
+    candidates: List[List[str]] = [[] for _ in records]
+    no_candidate_ids: List[str] = []
+
+    for i in range(len(records)):
+        if auto_labels[i]:
+            continue
+
+        # If category is blocked, we will exclude it from candidates and auto-assign
+        sim_row = sims[i].copy()
+        # Make blocked categories very low
+        for j, cn in enumerate(cat_names):
+            if cn in blocked[i]:
+                sim_row[j] = -1.0
+
+        # top sorted indices
+        top_idx = np.argsort(-sim_row)
+        top1 = top_idx[0]
+        top1_score = float(sim_row[top1])
+
+        # strong embedding => auto assign (if not blocked)
+        if top1_score >= EMB_STRONG_THRESHOLD and cat_names[top1] not in blocked[i]:
+            auto_labels[i] = [cat_names[top1]]
+            continue
+
+        # otherwise take topK above weak threshold
+        cand = []
+        for j in top_idx[: max(TOPK_CANDIDATES * 2, TOPK_CANDIDATES)]:
+            sc = float(sim_row[j])
+            if sc < EMB_WEAK_THRESHOLD:
+                continue
+            cand.append(cat_names[j])
+            if len(cand) >= TOPK_CANDIDATES:
+                break
+
+        # also add weak include-hit categories (hits==1) as candidates
+        weak_inc = [cn for cn, h in include_hits[i].items() if h > 0 and cn not in blocked[i]]
+        for cn in cat_names:
+            if cn in weak_inc and cn not in cand:
+                cand.append(cn)
+            if len(cand) >= TOPK_CANDIDATES:
+                break
+
+        candidates[i] = cand
+        if not cand:
+            no_candidate_ids.append(ids[i])
+
+    print(f"[route] no_candidate after keyword+embed: {len(no_candidate_ids)}", flush=True)
+
+    # GPT final confirmation for those not auto-labeled
+    final_labels: Dict[str, List[str]] = {ids[i]: auto_labels[i] for i in range(len(records)) if auto_labels[i]}
+    still_missing_ids: List[str] = []
+
+    if skip_gpt:
+        print("[gpt] skip_gpt enabled; leaving non-auto items as []", flush=True)
+        for i in range(len(records)):
+            if ids[i] not in final_labels:
+                final_labels[ids[i]] = []
+    else:
+        client = _build_openai_client()
+
+        # build GPT items for those without labels
+        pending = []
+        for i in range(len(records)):
+            _id = ids[i]
+            if _id in final_labels:
+                continue
+
+            # If no candidates, allow GPT to choose from all, but encourage empty if unclear
+            item = {
+                "id": _id,
+                "title": titles[i],
+                "text": texts[i],
+            }
+            if candidates[i]:
+                item["candidates"] = candidates[i]
+            pending.append(item)
+
+        print(f"[gpt] items to ask GPT: {len(pending)}", flush=True)
+
+        def run_batches(items_list: List[Dict[str, Any]], tag: str) -> Dict[str, List[str]]:
+            out_map: Dict[str, List[str]] = {}
+            start0 = time.time()
+            total = len(items_list)
+            done = 0
+            for batch in _chunked(items_list, CLASSIFY_BATCH_SIZE):
+                resp_map = gpt_classify_by_id(client, rules, batch, label=f"{tag}:{done}")
+                # merge
+                for it in batch:
+                    _id = it["id"]
+                    if _id in resp_map:
+                        out_map[_id] = resp_map[_id]
+                done = len(out_map)
+                elapsed = time.time() - start0
+                rate = (done / elapsed) if elapsed > 0 else 0.0
+                eta = ((total - done) / rate) if rate > 0 else 0.0
+                print(f"[gpt:{tag}] {done}/{total} | elapsed={_fmt_secs(elapsed)} | rate={rate:.2f} items/s | ETA={_fmt_secs(eta)}", flush=True)
+            return out_map
+
+        # first pass
+        first_map = run_batches(pending, "pass1")
+
+        # detect missing ids (漏掉)
+        missing1 = [it for it in pending if it["id"] not in first_map]
+        if missing1:
+            # debug artifacts
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            (debug_dir / "missing_pass1.json").write_text(json.dumps(missing1, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"[debug] dumped missing_pass1.json -> {debug_dir}", flush=True)
+
+        # second pass only for missing
+        second_map = {}
+        if missing1:
+            print(f"[gpt] retry missing ids (count={len(missing1)})", flush=True)
+            second_map = run_batches(missing1, "pass2")
+
+        # merge results
+        for _id, labs in first_map.items():
+            final_labels[_id] = labs
+        for _id, labs in second_map.items():
+            final_labels[_id] = labs
+
+        # still missing after 2 passes
+        still_missing_ids = [it["id"] for it in missing1 if it["id"] not in second_map]
+        if still_missing_ids:
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            (debug_dir / "still_missing_ids.json").write_text(json.dumps(still_missing_ids, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"[debug] dumped still_missing_ids.json -> {debug_dir}", flush=True)
+
+        # fill any absent entries with []
+        for it in pending:
+            if it["id"] not in final_labels:
+                final_labels[it["id"]] = []
+
+    # Apply exclude blocks again to final labels (exclude > include)
+    cleaned_list: List[List[str]] = []
+    for i, _id in enumerate(ids):
+        labs = final_labels.get(_id, [])
+        labs2 = [c for c in labs if c not in blocked[i]]
+        # de-dup and preserve rule order
+        ordered = [cn for cn in cat_names if cn in labs2]
+        cleaned_list.append(ordered)
+
+    df["categories"] = [";".join(x) for x in cleaned_list]
+    return df, cleaned_list, still_missing_ids
+
+
+# ============================
+# XLSX output
+# ============================
+def _safe_sheet_name(name: str, used: set) -> str:
+    base = re.sub(r"[\\/*?:\[\]]", "_", _normalize_cell(name)) or "Sheet"
+    base = base[:31]
+    candidate = base
+    i = 2
+    while candidate in used:
+        suffix = f"_{i}"
+        candidate = base[: 31 - len(suffix)] + suffix
+        i += 1
+    used.add(candidate)
+    return candidate
+
+
+def write_grouped_xlsx(
+    df: pd.DataFrame,
+    labels_list: List[List[str]],
+    ordered_categories: List[str],
+    still_missing_ids: List[str],
+    output_xlsx: str,
+):
+    used = set()
+    sid = set(still_missing_ids)
+
+    cat_to_indices = {c: [] for c in ordered_categories}
+    uncategorized = []
+    for i, labs in enumerate(labels_list):
+        if not labs:
+            uncategorized.append(i)
         for c in labs:
-            c = _normalize_cell(c)
-            if c in allowed_set:
-                clean.append(c)
-        labels_by_id[_id] = list(dict.fromkeys(clean))
+            if c in cat_to_indices:
+                cat_to_indices[c].append(i)
 
-        if isinstance(conf, (int, float)):
-            conf_by_id[_id] = float(conf)
+    with pd.ExcelWriter(output_xlsx, engine="openpyxl") as writer:
+        # ALL
+        df.to_excel(writer, index=False, sheet_name=_safe_sheet_name("ALL", used))
 
-    return labels_by_id, conf_by_id, raw
+        # category sheets
+        for cat in ordered_categories:
+            idxs = cat_to_indices.get(cat, [])
+            if not idxs:
+                continue
+            sheet = _safe_sheet_name(cat, used)
+            sub = df.iloc[idxs].copy()
+            sub.to_excel(writer, index=False, sheet_name=sheet)
 
+        # UNCATEGORIZED
+        if uncategorized:
+            sheet = _safe_sheet_name("UNCATEGORIZED", used)
+            df.iloc[uncategorized].copy().to_excel(writer, index=False, sheet_name=sheet)
 
-# -----------------------
-# Postprocess: primary label, review
-# -----------------------
-def choose_primary(labels: List[str], priority: List[str]) -> str:
-    s = set(labels or [])
-    for p in priority:
-        if p in s:
-            return p
-    return labels[0] if labels else ""
-
-
-def should_review(route: str, confidence: float, labels: List[str]) -> bool:
-    if not labels:
-        return True
-    if confidence and confidence < REVIEW_CONFIDENCE_THRESHOLD:
-        return True
-    if route.startswith("gpt") and confidence < 0.50:
-        return True
-    if "kw:tie" in route:
-        return True
-    return False
+        # STILL_MISSING (after 2 GPT passes)
+        if sid:
+            sheet = _safe_sheet_name("STILL_MISSING", used)
+            df[df["stable_id"].isin(sid)].copy().to_excel(writer, index=False, sheet_name=sheet)
 
 
-# -----------------------
-# DOCX writer (simple, reuse your style)
-# -----------------------
+# ============================
+# DOCX helpers (layout)
+# ============================
 def add_hyperlink(paragraph, url: str, text: str, color_hex="1155CC", underline=True):
     if not url:
         paragraph.add_run(text)
         return
+
     part = paragraph.part
     r_id = part.relate_to(
         url,
         reltype="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
         is_external=True,
     )
+
     hyperlink = OxmlElement("w:hyperlink")
     hyperlink.set(qn("r:id"), r_id)
 
@@ -823,7 +943,61 @@ def doi_to_url(doi: str) -> str:
     return f"https://doi.org/{doi}"
 
 
-def _write_record_block(doc: Document, row: dict, idx: int):
+def is_truthy_flag(s: str) -> bool:
+    return _normalize_cell(s).lower() in {"true", "1", "yes", "y", "t"}
+
+
+def strip_leading_abstract(text: str) -> str:
+    if not text:
+        return text
+    s = text.lstrip()
+    return re.sub(r"^(abstract)\s*[:.\-–—]*\s*", "", s, flags=re.IGNORECASE)
+
+
+def abstract_to_runs(abstract: str):
+    if not abstract:
+        return [("(empty)", False)]
+
+    abstract = strip_leading_abstract(abstract)
+    text = abstract.replace("\r\n", "\n").replace("\r", "\n")
+    lines = text.split("\n")
+
+    chunks = []
+    pending_space = False
+    for line in lines:
+        s = line.strip()
+        if s == "":
+            pending_space = True
+            continue
+        if pending_space and chunks:
+            chunks.append((" ", False))
+            pending_space = False
+
+        if s.isdigit():
+            chunks.append((s, True))
+        else:
+            if chunks:
+                prev_text, prev_sub = chunks[-1]
+                if not prev_sub and prev_text and not prev_text.endswith(" ") and prev_text[-1] not in {"-", "−", "/"}:
+                    chunks.append((" ", False))
+            chunks.append((s, False))
+
+    cleaned = []
+    for t, sub in chunks:
+        if cleaned and t == " " and cleaned[-1][0] == " ":
+            continue
+        cleaned.append((t, sub))
+    return cleaned
+
+
+def add_abstract_with_subscripts(paragraph, abstract: str):
+    for t, is_sub in abstract_to_runs(abstract):
+        run = paragraph.add_run(t)
+        if is_sub:
+            run.font.subscript = True
+
+
+def _write_record_block(doc, row, idx):
     title_en = _normalize_cell(row.get("title", ""))
     title_zh = _normalize_cell(row.get("title_zh", ""))
     link = _normalize_cell(row.get("link", ""))
@@ -832,6 +1006,8 @@ def _write_record_block(doc: Document, row: dict, idx: int):
     doi = _normalize_cell(row.get("doi", ""))
     abstract_en = _normalize_cell(row.get("abstract", ""))
     abstract_zh = _normalize_cell(row.get("abstract_zh", ""))
+    abstract_source = _normalize_cell(row.get("abstract_source", ""))
+    must_have_abstract = _normalize_cell(row.get("must_have_abstract", ""))
 
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(8)
@@ -845,7 +1021,7 @@ def _write_record_block(doc: Document, row: dict, idx: int):
     else:
         p.add_run(main_title).bold = True
 
-    if title_zh and title_en and title_zh != title_en:
+    if title_en and title_zh and title_en != title_zh:
         p2 = doc.add_paragraph()
         p2.paragraph_format.space_before = Pt(0)
         p2.paragraph_format.space_after = Pt(4)
@@ -869,13 +1045,26 @@ def _write_record_block(doc: Document, row: dict, idx: int):
         mr.bold = True
         add_hyperlink(meta, doi_to_url(doi), doi)
 
+    extra_bits = []
+    if abstract_source:
+        extra_bits.append(f"abstract_source={abstract_source}")
+    if is_truthy_flag(must_have_abstract):
+        extra_bits.append("must_have_abstract=True")
+    if extra_bits:
+        extra = doc.add_paragraph()
+        extra.paragraph_format.space_before = Pt(0)
+        extra.paragraph_format.space_after = Pt(6)
+        er = extra.add_run("Notes: ")
+        er.bold = True
+        extra.add_run("; ".join(extra_bits))
+
     abs_zh_p = doc.add_paragraph()
     abs_zh_p.paragraph_format.space_before = Pt(0)
     abs_zh_p.paragraph_format.space_after = Pt(4)
     abs_zh_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
     abs_zh_p.paragraph_format.line_spacing = 1.15
     abs_zh_p.add_run("摘要（ZH）: ").bold = True
-    abs_zh_p.add_run(abstract_zh if abstract_zh else "(empty)")
+    add_abstract_with_subscripts(abs_zh_p, abstract_zh if abstract_zh else "(empty)")
 
     abs_en_p = doc.add_paragraph()
     abs_en_p.paragraph_format.space_before = Pt(0)
@@ -883,10 +1072,16 @@ def _write_record_block(doc: Document, row: dict, idx: int):
     abs_en_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
     abs_en_p.paragraph_format.line_spacing = 1.15
     abs_en_p.add_run("Abstract (EN): ").bold = True
-    abs_en_p.add_run(abstract_en if abstract_en else "(empty)")
+    add_abstract_with_subscripts(abs_en_p, abstract_en if abstract_en else "(empty)")
 
 
-def df_to_docx_grouped(df: pd.DataFrame, ordered_categories: List[str], output_docx: str, report_title: str):
+def df_to_word_bilingual_grouped(
+    df: pd.DataFrame,
+    labels_list: List[List[str]],
+    ordered_categories: List[str],
+    output_docx: str,
+    report_title="Tech Tracking Digest",
+):
     doc = Document()
     set_doc_default_style(doc, font_name="Calibri", font_size_pt=11)
 
@@ -908,22 +1103,24 @@ def df_to_docx_grouped(df: pd.DataFrame, ordered_categories: List[str], output_d
     sub_p.add_run(datetime.now().strftime("%Y-%m-%d")).italic = True
 
     if df.empty:
-        doc.add_paragraph("No records.")
+        doc.add_paragraph("No records found in CSV.")
         doc.save(output_docx)
         return
 
-    # Build mapping category -> rows
-    cat_to_rows: Dict[str, List[dict]] = {c: [] for c in ordered_categories}
-    rows = df.to_dict(orient="records")
-    for row in rows:
-        cats = _normalize_cell(row.get("categories", ""))
-        lab = [x.strip() for x in cats.split(";") if x.strip()]
-        for c in lab:
-            if c in cat_to_rows:
-                cat_to_rows[c].append(row)
+    records = df.to_dict(orient="records")
+    cat_to_indices = {c: [] for c in ordered_categories}
+    uncategorized = []
+    for i, cats in enumerate(labels_list):
+        if not cats:
+            uncategorized.append(i)
+        for c in cats:
+            if c in cat_to_indices:
+                cat_to_indices[c].append(i)
 
-    appeared = [c for c in ordered_categories if cat_to_rows.get(c)]
-    for ci, cat in enumerate(appeared):
+    appeared_categories = [c for c in ordered_categories if cat_to_indices.get(c)]
+
+    # write categories in order
+    for ci, cat in enumerate(appeared_categories):
         header = doc.add_paragraph()
         header.paragraph_format.space_before = Pt(8)
         header.paragraph_format.space_after = Pt(6)
@@ -931,321 +1128,87 @@ def df_to_docx_grouped(df: pd.DataFrame, ordered_categories: List[str], output_d
         hr.bold = True
         hr.font.size = Pt(14)
 
-        for j, row in enumerate(cat_to_rows[cat], start=1):
-            _write_record_block(doc, row, j)
-            if j != len(cat_to_rows[cat]):
+        indices = cat_to_indices[cat]
+        for j, ridx in enumerate(indices, start=1):
+            _write_record_block(doc, records[ridx], j)
+            if j != len(indices):
                 add_divider_line(doc)
-        if ci != len(appeared) - 1:
+        if ci != len(appeared_categories) - 1:
             add_divider_line(doc)
+
+    # append uncategorized
+    if uncategorized:
+        add_divider_line(doc)
+        header = doc.add_paragraph()
+        header.paragraph_format.space_before = Pt(8)
+        header.paragraph_format.space_after = Pt(6)
+        hr = header.add_run("【UNCATEGORIZED】")
+        hr.bold = True
+        hr.font.size = Pt(14)
+
+        for j, ridx in enumerate(uncategorized, start=1):
+            _write_record_block(doc, records[ridx], j)
+            if j != len(uncategorized):
+                add_divider_line(doc)
 
     doc.save(output_docx)
 
 
-# -----------------------
-# XLSX writer
-# -----------------------
-def write_xlsx(
-    df: pd.DataFrame,
-    ordered_categories: List[str],
-    output_xlsx: str,
-    still_missing_ids: List[str],
-):
-    used = set()
-    with pd.ExcelWriter(output_xlsx, engine="openpyxl") as writer:
-        # All
-        _safe_all = _safe_sheet_name(SHEET_ALL, used)
-        df.to_excel(writer, index=False, sheet_name=_safe_all)
-
-        # Unlabeled
-        unlabeled = df[df["categories"].str.strip() == ""].copy()
-        _safe_un = _safe_sheet_name(SHEET_UNLABELED, used)
-        unlabeled.to_excel(writer, index=False, sheet_name=_safe_un)
-
-        # Review
-        review = df[df["need_review"].str.lower().isin(["true", "1", "yes", "y", "t"])].copy()
-        _safe_rv = _safe_sheet_name(SHEET_REVIEW, used)
-        review.to_excel(writer, index=False, sheet_name=_safe_rv)
-
-        # Still missing
-        if still_missing_ids:
-            miss = df[df["id"].isin(still_missing_ids)].copy()
-            _safe_ms = _safe_sheet_name(SHEET_STILL_MISSING, used)
-            miss.to_excel(writer, index=False, sheet_name=_safe_ms)
-
-        # Per-category
-        for cat in ordered_categories:
-            mask = df["categories"].apply(lambda s: cat in [x.strip() for x in str(s).split(";") if x.strip()])
-            sub = df[mask].copy()
-            if sub.empty:
-                continue
-            sheet = _safe_sheet_name(cat, used)
-            sub.to_excel(writer, index=False, sheet_name=sheet)
-
-
-# -----------------------
-# Main pipeline
-# -----------------------
+# ============================
+# main
+# ============================
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", default="", help="Input weekly CSV path (default: latest in output/weekly)")
-    ap.add_argument("-c", "--classification", default=DEFAULT_CLASSIFICATION_FILE, help="classification.txt path")
-    ap.add_argument("--report-title", default="Tech Tracking Digest")
-    ap.add_argument("--skip-gpt", action="store_true", help="Skip GPT stage (only keyword+embedding+hard rules)")
-    ap.add_argument("--force-gpt", action="store_true", help="Send all items to GPT (ignore auto routes)")
-    ap.add_argument("--no-docx", action="store_true", help="Do not generate DOCX")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", default="", help="Input weekly CSV path (default: latest in output/weekly)")
+    parser.add_argument("-c", "--classification", default=DEFAULT_CLASSIFICATION_FILE, help="Classification rules file")
+    parser.add_argument("--report-title", default="Tech Tracking Digest")
+    parser.add_argument("--skip-translate", action="store_true", help="Skip GPT translation")
+    parser.add_argument("--skip-gpt", action="store_true", help="Skip GPT classification (only keyword+embedding)")
+    parser.add_argument("--debug-dir", default="output/debug", help="Debug folder for failure artifacts")
+    args = parser.parse_args()
 
-    # Load categories
-    ordered_categories, cat_desc, cat_keywords = parse_classification_file(args.classification)
-    print(f"[classify] categories ({len(ordered_categories)}): {ordered_categories}", flush=True)
+    if not OPENAI_MODEL:
+        raise RuntimeError("OPENAI_MODEL is empty. Set OPENAI_MODEL env (e.g., gpt-4o-mini).")
 
-    # Pick input
-    csv_path = Path(args.input) if args.input else pick_latest_weekly_csv(DEFAULT_INPUT_DIR)
-    print(f"[io] picked CSV: {csv_path}", flush=True)
+    if args.input:
+        csv_path = Path(args.input)
+    else:
+        csv_path = pick_latest_weekly_csv(folder="output/weekly")
 
+    print(f"[io] Picked CSV: {csv_path}", flush=True)
     df = pd.read_csv(csv_path, encoding="utf-8-sig", keep_default_na=False)
     df = ensure_base_columns(df)
-    print(f"[io] loaded rows: {len(df)}", flush=True)
+    print(f"[io] Loaded rows: {len(df)}", flush=True)
 
-    # Build stable ids + text_for_classify
-    records = df.to_dict(orient="records")
-    id_list = []
-    text_for_id: Dict[str, str] = {}
-    title_for_id: Dict[str, str] = {}
-    row_idx_for_id: Dict[str, int] = {}
+    rules = load_classification_rules(args.classification)
+    ordered_categories = [r.name for r in rules]
+    print(f"[classify] loaded categories ({len(ordered_categories)}): {ordered_categories}", flush=True)
 
-    for i, row in enumerate(records):
-        rid = make_stable_id(row)
-        id_list.append(rid)
-        row_idx_for_id[rid] = i
-        title_for_id[rid] = _normalize_cell(row.get("title", ""))
-        text_for_id[rid] = build_text_for_classify(row.get("title", ""), row.get("abstract", ""))
-
-    df["id"] = id_list
-
-    # Prepare embedder and category embeddings
-    embedder = try_load_embedder()
-    cat_emb = None
-    if embedder:
-        protos = build_category_prototypes(ordered_categories, cat_desc, cat_keywords)
-        try:
-            cat_emb = embedder.encode(protos, normalize_embeddings=True)
-            print("[embed] category embeddings ready", flush=True)
-        except Exception as e:
-            print(f"[embed] disabled (encode failed): {e}", flush=True)
-            embedder = None
-            cat_emb = None
-
-    # Routing results
-    labels_by_id: Dict[str, List[str]] = {}
-    conf_by_id: Dict[str, float] = {}
-    route_by_id: Dict[str, str] = {}
-    candidates_by_id: Dict[str, List[str]] = {}
-
-    need_gpt_ids: List[str] = []
-
-    # Stage A/B/C routing
-    for rid in id_list:
-        text = text_for_id.get(rid, "")
-        if not text:
-            labels_by_id[rid] = []
-            conf_by_id[rid] = 0.0
-            route_by_id[rid] = "empty"
-            continue
-
-        if args.force_gpt:
-            need_gpt_ids.append(rid)
-            route_by_id[rid] = "force_gpt"
-            continue
-
-        # A) hard overrides first (on empty labels)
-        hard_labels, hard_reason = apply_hard_overrides(text, [], ordered_categories)
-        if hard_reason and hard_labels:
-            labels_by_id[rid] = hard_labels
-            conf_by_id[rid] = 0.98
-            route_by_id[rid] = hard_reason
-            continue
-
-        # B) keyword strong routing
-        kw_labels, kw_conf, kw_route = keyword_route(text, ordered_categories, cat_keywords)
-        if kw_labels:
-            labels_by_id[rid] = kw_labels
-            conf_by_id[rid] = kw_conf
-            route_by_id[rid] = kw_route
-            continue
-
-        # Collect candidates from keyword weak hits
-        kw_cands = keyword_candidates(text, ordered_categories, cat_keywords, topk=EMB_TOPK_CANDIDATES)
-
-        # C) embedding strong routing / candidates
-        emb_labels, emb_conf, emb_route, _top = embedding_route_single(text, ordered_categories, cat_emb, embedder)
-        if emb_labels:
-            labels_by_id[rid] = emb_labels
-            conf_by_id[rid] = emb_conf
-            route_by_id[rid] = emb_route
-            continue
-
-        emb_cands = embedding_candidates(text, ordered_categories, cat_emb, embedder, topk=EMB_TOPK_CANDIDATES)
-
-        # Merge candidates (kw + emb) de-duped
-        merged = []
-        for x in (kw_cands + emb_cands):
-            if x and x not in merged:
-                merged.append(x)
-        if merged:
-            candidates_by_id[rid] = merged[:EMB_TOPK_CANDIDATES]
-            route_by_id[rid] = f"candidates({','.join(candidates_by_id[rid])})"
-        else:
-            route_by_id[rid] = "no_candidates"
-
-        need_gpt_ids.append(rid)
-
-    print(f"[route] need_gpt={len(need_gpt_ids)} / total={len(id_list)}", flush=True)
-
-    # GPT stage
-    still_missing_ids: List[str] = []
-    if need_gpt_ids and not args.skip_gpt:
-        client = _build_openai_client()
-
-        start = time.time()
-        done = 0
-        total = len(need_gpt_ids)
-
-        # First pass GPT in batches
-        for batch_ids in _chunked(need_gpt_ids, CLASSIFY_BATCH_SIZE):
-            items = [{"id": rid, "title": title_for_id.get(rid, ""), "text": text_for_id.get(rid, "")} for rid in batch_ids]
-            cands = {rid: candidates_by_id.get(rid, []) for rid in batch_ids if candidates_by_id.get(rid)}
-
-            out_labels, out_conf, raw = gpt_classify_by_id(
-                client,
-                ordered_categories=ordered_categories,
-                cat_desc=cat_desc,
-                items=items,
-                candidates_by_id=cands if cands else None,
-                tag="gpt_classify",
-            )
-
-            # Merge results
-            for rid in batch_ids:
-                if rid in out_labels:
-                    labels_by_id[rid] = out_labels[rid]
-                    conf_by_id[rid] = float(out_conf.get(rid, 0.55))  # default mid if not provided
-                    route_by_id[rid] = route_by_id.get(rid, "gpt") + "|gpt"
-                else:
-                    # missing -> keep for retry
-                    pass
-
-            done += len(batch_ids)
-            elapsed = time.time() - start
-            rate = done / elapsed if elapsed > 0 else 0.0
-            eta = (total - done) / rate if rate > 0 else 0.0
-            print(f"[gpt#1] {done}/{total} elapsed={_fmt_secs(elapsed)} rate={rate:.2f} it/s ETA={_fmt_secs(eta)}", flush=True)
-
-        missing_after_first = [rid for rid in need_gpt_ids if rid not in labels_by_id]
-        if missing_after_first:
-            print(f"[gpt#1] missing ids: {len(missing_after_first)}", flush=True)
-
-        # Retry missing once
-        if missing_after_first and GPT_RETRY_MISSING_ONCE:
-            retry_ids = missing_after_first
-            print(f"[gpt#2] retry missing (once), n={len(retry_ids)}", flush=True)
-
-            for batch_ids in _chunked(retry_ids, max(1, min(CLASSIFY_BATCH_SIZE, 8))):
-                items = [{"id": rid, "title": title_for_id.get(rid, ""), "text": text_for_id.get(rid, "")} for rid in batch_ids]
-                cands = {rid: candidates_by_id.get(rid, []) for rid in batch_ids if candidates_by_id.get(rid)}
-
-                out_labels, out_conf, raw = gpt_classify_by_id(
-                    client,
-                    ordered_categories=ordered_categories,
-                    cat_desc=cat_desc,
-                    items=items,
-                    candidates_by_id=cands if cands else None,
-                    tag="gpt_retry_missing",
-                )
-
-                for rid in batch_ids:
-                    if rid in out_labels:
-                        labels_by_id[rid] = out_labels[rid]
-                        conf_by_id[rid] = float(out_conf.get(rid, 0.55))
-                        route_by_id[rid] = route_by_id.get(rid, "gpt") + "|gpt_retry"
-                    else:
-                        # still missing after retry -> record
-                        pass
-
-            still_missing_ids = [rid for rid in retry_ids if rid not in labels_by_id]
-            if still_missing_ids:
-                print(f"[gpt#2] still missing after retry: {len(still_missing_ids)}", flush=True)
-
-    elif need_gpt_ids and args.skip_gpt:
-        print("[gpt] skipped by --skip-gpt; unresolved items will remain unlabeled", flush=True)
-        still_missing_ids = []
-
-    # Final postprocess: hard overrides + normalize to string join
-    priority = ordered_categories[:]  # use file order as priority unless you want custom
-    # If you have a category called "其他", make it lowest priority by default
-    if "其他" in priority:
-        priority = [c for c in priority if c != "其他"] + ["其他"]
-
-    final_cats_col = []
-    final_primary = []
-    final_conf = []
-    final_route = []
-    final_review = []
-
-    for rid in id_list:
-        text = text_for_id.get(rid, "")
-        labs = labels_by_id.get(rid, [])
-        conf = float(conf_by_id.get(rid, 0.0))
-        route = route_by_id.get(rid, "")
-
-        # Apply hard overrides again on the chosen labels
-        labs2, reason = apply_hard_overrides(text, labs, ordered_categories)
-        if reason:
-            # override confidence & route
-            labs = labs2
-            conf = max(conf, 0.90)
-            route = (route + "|" if route else "") + reason
-
-        # Ensure labels are valid
-        allowed = set(ordered_categories)
-        labs = [x for x in labs if x in allowed]
-        labs = list(dict.fromkeys(labs))
-
-        primary = choose_primary(labs, priority)
-
-        # If empty labels and you have "其他", optionally assign it (comment out if you want truly empty)
-        if not labs and "其他" in ordered_categories:
-            labs = ["其他"]
-            primary = "其他"
-            conf = max(conf, 0.40)
-            route = (route + "|" if route else "") + "fallback:其他"
-
-        need_review = should_review(route, conf, labs)
-
-        final_cats_col.append(";".join(labs))
-        final_primary.append(primary)
-        final_conf.append(f"{conf:.3f}")
-        final_route.append(route)
-        final_review.append("True" if need_review else "False")
-
-    df["categories"] = final_cats_col
-    df["primary_category"] = final_primary
-    df["confidence"] = final_conf
-    df["route"] = final_route
-    df["need_review"] = final_review
-
-    # Output naming (match your style: *_translated.xlsx / *.docx)
-    out_xlsx = csv_path.with_name(csv_path.stem + "_translated.xlsx")
-    out_docx = out_xlsx.with_suffix(".docx")
-
-    write_xlsx(df, ordered_categories, str(out_xlsx), still_missing_ids)
-    print(f"[io] wrote XLSX: {out_xlsx}", flush=True)
-
-    if not args.no_docx:
-        df_to_docx_grouped(df, ordered_categories, str(out_docx), report_title=args.report_title)
-        print(f"[io] wrote DOCX: {out_docx}", flush=True)
+    if not args.skip_translate and not args.skip_gpt:
+        # translation needs GPT; if skip_gpt, skip translate too by default unless user wants it
+        df = enrich_translation(df)
     else:
-        print("[io] skipped DOCX by --no-docx", flush=True)
+        if args.skip_translate:
+            print("[plan] skip translation by --skip-translate", flush=True)
+        if args.skip_gpt:
+            print("[plan] skip GPT classification by --skip-gpt", flush=True)
+
+    debug_dir = Path(args.debug_dir)
+
+    df2, labels_list, still_missing_ids = classify_hybrid(
+        df=df,
+        rules=rules,
+        debug_dir=debug_dir,
+        skip_gpt=args.skip_gpt,
+    )
+
+    output_xlsx = csv_path.with_name(csv_path.stem + "_translated.xlsx")
+    write_grouped_xlsx(df2, labels_list, ordered_categories, still_missing_ids, str(output_xlsx))
+    print(f"[io] Wrote XLSX: {output_xlsx}", flush=True)
+
+    output_docx = output_xlsx.with_suffix(".docx")
+    df_to_word_bilingual_grouped(df2, labels_list, ordered_categories, str(output_docx), report_title=args.report_title)
+    print(f"[io] Wrote DOCX: {output_docx}", flush=True)
 
 
 if __name__ == "__main__":
