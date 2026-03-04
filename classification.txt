@@ -1,27 +1,25 @@
-光伏：太阳能光伏材料与器件研究。关键词：perovskite solar cell, silicon solar cell, organic photovoltaics, dye-sensitized solar cell, quantum dot solar cell, CdTe, CIGS, GaAs solar cell, tandem solar cell, photovoltaic module。
+光伏：太阳能光伏材料与器件研究。包括利用太阳光进行光电转换的光伏电池和组件，如钙钛矿太阳能电池、晶硅太阳能电池、有机光伏、染料敏化太阳能电池、量子点太阳能电池、CdTe、CIGS、III-V族（如GaAs、InP）光伏电池以及叠层光伏器件等。不包括光电探测器、X射线探测器、LED、光催化等非太阳能发电器件研究。
 
-正极：碱金属离子电池正极材料研究。关键词：cathode, cathode material, NMC, NCA, LFP, layered oxide cathode, polyanion cathode, sodium-ion cathode, potassium-ion cathode, magnesium-ion cathode, lithium-sulfur cathode。
+正极：可充电电池正极材料研究。包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池，以及锌基、锰基、锡基等水系电池、锂硫电池、室温钠硫电池的正极材料及其电化学性能研究。不包括金属空气电池、金属氧气电池、金属二氧化碳电池、液流电池、铅酸电池等其他储能体系。
 
-负极：碱金属离子电池负极材料研究。关键词：anode, graphite anode, silicon anode, lithium metal anode, hard carbon, sodium-ion anode, potassium-ion anode, magnesium-ion anode。
+负极：可充电电池负极材料研究。包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池，以及锌基、锰基、锡基等水系电池、锂硫电池、室温钠硫电池的负极材料及其电化学性能研究，如石墨、硅、金属负极、硬碳等。不包括金属空气电池、金属氧气电池、金属二氧化碳电池、液流电池、铅酸电池等其他储能体系。
 
-电解质：电池电解质研究。关键词：electrolyte, solid electrolyte, polymer electrolyte, liquid electrolyte, ionic liquid electrolyte, gel electrolyte, LiPF6, LiTFSI, sulfide electrolyte, oxide electrolyte。
+电解质：电池电解质体系研究，包括固态电解质、液态电解质、凝胶电解质、聚合物电解质等，以及电解质盐、溶剂、离子导电机制等内容。主要针对锂离子、钠离子、钾离子、镁离子等可充电电池体系。不包括电催化反应中仅作为反应介质使用的电解液。
 
-非活性材料等：电池非活性材料与制造技术。关键词：separator, binder, conductive additive, current collector, battery solvent, electrolyte solvent, battery recycling, battery safety, thermal runaway, battery management system, battery manufacturing, dry electrode, battery testing。
+非活性材料等：电池非活性材料及相关技术研究，包括隔膜、集流体、电极粘结剂、导电剂、电解质溶剂、关键原材料（锂、镍、钴、锰、钠、钾、石墨、硅等资源开采、提取和回收）、电池热管理、电池热失控与安全、电池BMS控制系统、电池测试方法、电池制备工艺（如干法电极、电极结构设计）以及电池回收技术等。不包括其他类型储能器件。
 
-其他储能器件：非锂离子电池储能技术。关键词：metal-air battery, metal-oxygen battery, metal-CO2 battery, flow battery, redox flow battery, lead-acid battery, compressed air energy storage, gravity energy storage, flywheel energy storage, supercapacitor, dielectric capacitor。
+其他储能器件：除常规可充电电池外的其他储能技术，包括金属空气电池、金属氧气电池、金属二氧化碳电池、液流电池、铅酸电池，以及压缩空气储能、重力储能、飞轮储能、超级电容器、电容器、介电储能材料等。
 
-热能：热能系统与热管理技术。关键词：thermal energy storage, heat pump, thermoelectric, heat exchanger, thermal cycle, industrial heat, district heating, cogeneration, geothermal energy。
+热能：与热能生产、转换和利用相关的技术研究，包括热源（化石燃料、太阳能热利用、核能、地热能、海洋热能、生物质能）、储热技术、工业用热、建筑供热、热泵技术、热电材料、热能转换、换热器、热力循环以及热能发电等。
 
-核能：核裂变与核聚变技术。关键词：nuclear fission, nuclear fusion, small modular reactor, SMR, generation IV reactor, thorium reactor, nuclear fuel cycle, uranium processing, tritium production。
+核能：核能发电与核燃料技术研究，包括核裂变反应堆、第四代核反应堆、小型模块化反应堆（SMR）、核聚变反应堆、核燃料循环、核废料处理以及铀、钍、氚等核材料生产与利用。不包括核武器、核试验或军事核技术相关研究。
 
-氢氨醇：氢、氨、甲醇等能源载体的制备与利用。关键词：hydrogen production, water electrolysis, green hydrogen, ammonia synthesis, green ammonia, methanol synthesis, CO2 hydrogenation to methanol, hydrogen storage, hydrogen transport, hydrogen fuel cell。
+氢氨醇：氢能、氨能和甲醇等能源载体的制备与利用技术。包括电解水制氢、绿氢生产、绿氨合成、CO2加氢制甲醇、生物质制甲醇、乙醇制备以及相关储运技术、燃料电池应用、能源利用系统等。
 
-产业降碳：工业减碳与低碳技术。关键词：industrial decarbonization, steel decarbonization, cement decarbonization, chemical industry decarbonization, low-carbon materials, energy efficiency, zero-carbon factory, zero-carbon industrial park。
+产业降碳：传统工业领域的减碳和节能技术，包括钢铁、水泥、建筑、交通、化工、冶金、石油、采矿等行业的低碳技术改造、替代材料、零碳园区、零碳工厂、零碳建筑等。
 
-CCUS：碳捕集、利用与封存技术。关键词：carbon capture, CO2 capture, direct air capture, DAC, carbon storage, CO2 utilization, CO2 mineralization, CO2 electroreduction。
+CCUS：碳捕集、利用与封存技术（Carbon Capture, Utilization and Storage）。包括CO2捕集材料、吸附剂、溶剂、膜分离、CO2运输与封存、CO2利用（如CO2电还原、CO2加氢制燃料或化学品等）。不包括氢氨醇能源体系。
 
-海底采矿：海底矿产资源开发技术。关键词：deep sea mining, seabed mining, polymetallic nodules, seafloor mineral extraction。
+海底采矿：与海底矿产资源开发相关的技术，包括深海采矿、多金属结核、多金属硫化物、海底矿物资源开采设备与技术等。
 
-塑料回收：塑料循环利用与可回收材料。关键词：plastic recycling, polymer recycling, chemical recycling of plastics, biodegradable plastics, recyclable polymers, depolymerization。
-
-其他：不属于以上任何类别的能源或材料研究。
+塑料回收：塑料回收与可循环聚合物研究，包括机械回收、化学回收、可降解塑料、可回收聚合物材料、塑料循环利用技术等。
