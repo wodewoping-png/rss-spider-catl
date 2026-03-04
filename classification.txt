@@ -1,14 +1,27 @@
-光伏：涉及钙钛矿、晶硅、有机光伏、染料敏化、量子点、碲化镉、铜铟镓硒、III-V族化合物（如砷化镓、磷化铟）等材料，单节、叠层光伏cell、组件研究文章
-正极：包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池（包括有机、水系电解液体系）；锌基、锰基、锡基等水系电池；锂硫、室温钠硫等电池的正极材料研究文章。注：不包括金属空气电池、金属氧气电池、金属-二氧化碳电池、液流电池、铅酸电池等（金属包括但不限于是锂、钠、钾、钙、镁等）。
-负极：包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池（包括有机、水系电解液体系）；锌基、锰基、锡基等水系电池；锂硫、室温钠硫等电池的负极材料研究文章。注：不包括金属空气电池、金属氧气电池、金属-二氧化碳电池、液流电池、铅酸电池等（金属包括但不限于是锂、钠、钾、钙、镁等）。
-电解质：包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池（包括有机、水系电解液体系）；锌基、锰基、锡基等水系电池；锂硫、室温钠硫等电池的电解质（包括固态电解质、液态电解质、半固态电解质）研究文章。注：不包括金属空气电池、金属氧气电池、金属-二氧化碳电池、液流电池、铅酸电池等（金属包括但不限于是锂、钠、钾、钙、镁等）。
-非活性材料等：正极：包括锂离子、钠离子、钾离子、镁离子等碱金属离子电池（包括有机、水系电解液体系）；锌基、锰基、锡基等水系电池；锂硫、室温钠硫等电池的非活性材料（集流体、隔膜、电极粘结剂、导电剂、电解质溶剂等）、关键原材料（锂、镍、钴、锰、钠、钾等金属、石墨、硅等材料开采、提取、回收等）、电池热失控/管理研究、电池热安全研究、电池bms控制系统研究、电池测试方法技术、电池制备工艺研究（例如干法电极、锂箔生产、新电池生产结构等）、电池回收等研究文章。注：不包括金属空气电池、金属氧气电池、金属-二氧化碳电池、液流电池、铅酸电池等（金属包括但不限于是锂、钠、钾、钙、镁等）。
-其他储能器件：金属空气电池、金属氧气电池、金属-二氧化碳电池、液流电池、铅酸电池等（金属包括但不限于是锂、钠、钾、钙、镁等）、压缩空气储能、重力储能、飞轮储能、超级电容器、电容、介电材料、液滴发电材料等
-热能：涉及热源（化石燃料、太阳能、核能、地热能、海洋热能、生物质能）、应用（发电、工业供热、建筑供暖、热电联产）及核心技术（热力循环、换热器、热泵、热能存储、热电转换）的研究进展
-核能：涉及核聚变、第四代核裂变反应堆及核废料处理、核原料（铀、钍、氚等生产制备及回收技术）
-氢氨醇：氢氨醇制备及利用领域，请重点聚焦绿色方向，全面涵盖绿氢（电解水制氢）、绿氨（合成工艺）、绿色甲醇（CO₂加氢/生物质）、乙醇的制备技术、关键装备、储运系统及其应用技术（例如直接燃料、燃料电池、发电、工业原料等）的研究进展。
-产业降碳：涉及钢铁、建筑、交通、化工、冶金、石油、采矿等传统领域各个工艺环节的节能、减碳改造/替代材料、技术研究，以及零碳园区/工厂/岛屿/建筑技术研究。
-CCUS：碳捕集存储以及利用技术，不包括氢氨醇。
-海底采矿：与海底采矿相关的技术。
-塑料回收：与塑料回收或者新型可回收塑料相关的技术。
+光伏：太阳能光伏材料与器件研究。关键词：perovskite solar cell, silicon solar cell, organic photovoltaics, dye-sensitized solar cell, quantum dot solar cell, CdTe, CIGS, GaAs solar cell, tandem solar cell, photovoltaic module。
 
+正极：碱金属离子电池正极材料研究。关键词：cathode, cathode material, NMC, NCA, LFP, layered oxide cathode, polyanion cathode, sodium-ion cathode, potassium-ion cathode, magnesium-ion cathode, lithium-sulfur cathode。
+
+负极：碱金属离子电池负极材料研究。关键词：anode, graphite anode, silicon anode, lithium metal anode, hard carbon, sodium-ion anode, potassium-ion anode, magnesium-ion anode。
+
+电解质：电池电解质研究。关键词：electrolyte, solid electrolyte, polymer electrolyte, liquid electrolyte, ionic liquid electrolyte, gel electrolyte, LiPF6, LiTFSI, sulfide electrolyte, oxide electrolyte。
+
+非活性材料等：电池非活性材料与制造技术。关键词：separator, binder, conductive additive, current collector, battery solvent, electrolyte solvent, battery recycling, battery safety, thermal runaway, battery management system, battery manufacturing, dry electrode, battery testing。
+
+其他储能器件：非锂离子电池储能技术。关键词：metal-air battery, metal-oxygen battery, metal-CO2 battery, flow battery, redox flow battery, lead-acid battery, compressed air energy storage, gravity energy storage, flywheel energy storage, supercapacitor, dielectric capacitor。
+
+热能：热能系统与热管理技术。关键词：thermal energy storage, heat pump, thermoelectric, heat exchanger, thermal cycle, industrial heat, district heating, cogeneration, geothermal energy。
+
+核能：核裂变与核聚变技术。关键词：nuclear fission, nuclear fusion, small modular reactor, SMR, generation IV reactor, thorium reactor, nuclear fuel cycle, uranium processing, tritium production。
+
+氢氨醇：氢、氨、甲醇等能源载体的制备与利用。关键词：hydrogen production, water electrolysis, green hydrogen, ammonia synthesis, green ammonia, methanol synthesis, CO2 hydrogenation to methanol, hydrogen storage, hydrogen transport, hydrogen fuel cell。
+
+产业降碳：工业减碳与低碳技术。关键词：industrial decarbonization, steel decarbonization, cement decarbonization, chemical industry decarbonization, low-carbon materials, energy efficiency, zero-carbon factory, zero-carbon industrial park。
+
+CCUS：碳捕集、利用与封存技术。关键词：carbon capture, CO2 capture, direct air capture, DAC, carbon storage, CO2 utilization, CO2 mineralization, CO2 electroreduction。
+
+海底采矿：海底矿产资源开发技术。关键词：deep sea mining, seabed mining, polymetallic nodules, seafloor mineral extraction。
+
+塑料回收：塑料循环利用与可回收材料。关键词：plastic recycling, polymer recycling, chemical recycling of plastics, biodegradable plastics, recyclable polymers, depolymerization。
+
+其他：不属于以上任何类别的能源或材料研究。
