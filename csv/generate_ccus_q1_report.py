@@ -17,6 +17,7 @@ BAR_PNG = BASE_DIR / "ccus_q1_2026_label_bar.png"
 PIE_PNG = BASE_DIR / "ccus_q1_2026_label_pie.png"
 MONTHLY_PNG = BASE_DIR / "ccus_q1_2026_monthly_trend.png"
 REPORT_MD = BASE_DIR / "ccus_q1_2026_brief_report.md"
+MIN_NEWS_COUNT = 15
 
 
 def save_label_bar(tag_counts: pd.DataFrame) -> None:
@@ -36,16 +37,10 @@ def save_label_bar(tag_counts: pd.DataFrame) -> None:
 
 
 def save_label_pie(tag_counts: pd.DataFrame) -> None:
-    top_n = 7
-    pie_df = tag_counts.head(top_n).copy()
-    other_count = int(tag_counts.iloc[top_n:]["news_count"].sum())
-    if other_count:
-        pie_df.loc[len(pie_df)] = {"label": "Other", "news_count": other_count}
-
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.pie(
-        pie_df["news_count"],
-        labels=pie_df["label"],
+        tag_counts["news_count"],
+        labels=tag_counts["label"],
         autopct="%1.1f%%",
         startangle=90,
         counterclock=False,
@@ -110,7 +105,8 @@ def build_report(news: pd.DataFrame, tag_counts: pd.DataFrame, monthly_counts: p
         f"- 标签统计文件：`{TAG_COUNTS_CSV.name}`",
         "- 统计区间：2026-01-01 至 2026-03-31",
         f"- 新闻总量：{total_news} 篇",
-        f"- 标签总提及量：{total_tag_mentions} 次",
+        f"- 纳入统计的标签阈值：不少于 {MIN_NEWS_COUNT} 次",
+        f"- 纳入统计的标签提及量：{total_tag_mentions} 次",
         "",
         "## 2. 核心结论",
         f"- 一季度新闻量总体稳定，1月 {int(monthly_counts.iloc[0])} 篇，2月 {int(monthly_counts.iloc[1])} 篇，3月 {int(monthly_counts.iloc[2])} 篇，峰值出现在 {max_month}，低点出现在 {min_month}。",
@@ -162,7 +158,12 @@ def build_report(news: pd.DataFrame, tag_counts: pd.DataFrame, monthly_counts: p
 
 def main() -> None:
     news = pd.read_csv(NEWS_CSV)
-    tag_counts = pd.read_csv(TAG_COUNTS_CSV).sort_values("news_count", ascending=False).reset_index(drop=True)
+    tag_counts = (
+        pd.read_csv(TAG_COUNTS_CSV)
+        .sort_values("news_count", ascending=False)
+        .query("news_count >= @MIN_NEWS_COUNT")
+        .reset_index(drop=True)
+    )
     news["date"] = pd.to_datetime(news["date"])
 
     save_label_bar(tag_counts)

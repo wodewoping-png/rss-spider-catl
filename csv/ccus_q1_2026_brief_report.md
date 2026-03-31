@@ -5,43 +5,30 @@
 - 标签统计文件：`carbonherald_q1_2026_tag_counts.csv`
 - 统计区间：2026-01-01 至 2026-03-31
 - 新闻总量：278 篇
-- 标签总提及量：666 次
+- 纳入统计的标签阈值：不少于 15 次
+- 纳入统计的标签提及量：629 次
 
 ## 2. 核心结论
 - 一季度新闻量总体稳定，1月 92 篇，2月 96 篇，3月 90 篇，峰值出现在 2026-02，低点出现在 2026-03。
-- 领域关注度高度集中在 `Removal`、`Capture` 和 `Storage`。三者合计 351 次，占全部标签提及的 52.7%。
+- 领域关注度高度集中在 `Removal`、`Capture` 和 `Storage`。三者合计 351 次，占全部标签提及的 55.8%。
 - `Removal` 连续三个月保持第一，分别为 55、56、58 次，说明碳移除仍是季度主线。
 - `Capture` 在 2 月达到季度内月度高点 44 次，随后 3 月回落至 38 次，反映捕集项目新闻在 2 月更集中。
 - 来源类别上，`removal` 相关新闻 170 条，`capture` 相关新闻 143 条，前者略高，显示媒体关注仍偏向移除型技术与项目进展。
 
 ## 3. 领域分布
-- Removal: 169 次，占比 25.4%
-- Capture: 122 次，占比 18.3%
-- Storage: 60 次，占比 9.0%
-- Biomass: 46 次，占比 6.9%
-- Markets: 38 次，占比 5.7%
-- Direct Air Capture: 30 次，占比 4.5%
-- Mineralization: 29 次，占比 4.4%
-- Policy: 28 次，占比 4.2%
-- Forests: 26 次，占比 3.9%
-- Farming: 22 次，占比 3.3%
-- Utilization: 22 次，占比 3.3%
-- BECCS: 20 次，占比 3.0%
-- Ocean: 17 次，占比 2.6%
-- Fuels: 12 次，占比 1.8%
-- Energy: 8 次，占比 1.2%
-- Uncategorized: 4 次，占比 0.6%
-- Compliance: 2 次，占比 0.3%
-- Hydrogen: 2 次，占比 0.3%
-- Afforestation/Reforestation (ARR): 1 次，占比 0.2%
-- Article 6: 1 次，占比 0.2%
-- Carbon Accounting: 1 次，占比 0.2%
-- ETS: 1 次，占比 0.2%
-- Investment: 1 次，占比 0.2%
-- Opinion: 1 次，占比 0.2%
-- Prices: 1 次，占比 0.2%
-- Technology: 1 次，占比 0.2%
-- Voluntary: 1 次，占比 0.2%
+- Removal: 169 次，占比 26.9%
+- Capture: 122 次，占比 19.4%
+- Storage: 60 次，占比 9.5%
+- Biomass: 46 次，占比 7.3%
+- Markets: 38 次，占比 6.0%
+- Direct Air Capture: 30 次，占比 4.8%
+- Mineralization: 29 次，占比 4.6%
+- Policy: 28 次，占比 4.5%
+- Forests: 26 次，占比 4.1%
+- Farming: 22 次，占比 3.5%
+- Utilization: 22 次，占比 3.5%
+- BECCS: 20 次，占比 3.2%
+- Ocean: 17 次，占比 2.7%
 
 ## 4. 月度走势
 - 2026-01: 92 篇，环比基准月。
