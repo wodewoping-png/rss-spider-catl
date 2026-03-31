@@ -30,6 +30,7 @@ ABSTRACT_COL_CANDIDATES = ["abstract", "Abstract", "摘要", "abstract_zh"]
 LINK_COL_CANDIDATES = ["link", "url", "URL", "链接"]
 PUB_DATE_COL_CANDIDATES = ["pub_date", "published", "published_str", "date"]
 SOURCE_COL_CANDIDATES = ["source", "来源"]
+EXCLUDED_LINK_KEYWORDS = ["carbonherald"]
 
 CATEGORY_ORDER = [
     "CO₂光转化",
@@ -188,6 +189,11 @@ def load_existing_csv(path: Path) -> pd.DataFrame:
     normalized["source"] = df[source_col].map(normalize_text) if source_col else ""
 
     normalized = normalized[normalized["title"] != ""].copy()
+    if EXCLUDED_LINK_KEYWORDS:
+        excluded_pattern = "|".join(re.escape(keyword) for keyword in EXCLUDED_LINK_KEYWORDS)
+        normalized = normalized[
+            ~normalized["link"].str.lower().str.contains(excluded_pattern, na=False)
+        ].copy()
     normalized["dedup_title"] = normalized["title"].map(normalize_title_for_dedup)
     normalized["has_abstract"] = normalized["abstract"].str.len().fillna(0) > 0
     normalized["abstract_len"] = normalized["abstract"].str.len().fillna(0)
