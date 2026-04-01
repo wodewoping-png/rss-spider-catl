@@ -309,27 +309,43 @@ def write_monthly_sheet(
 
     start_row = 8
     start_col = 5
-    ws.cell(row=start_row, column=start_col, value="标签月度分布数据").font = SECTION_FONT
+    ws.cell(row=start_row, column=start_col, value="各领域月度分布数据").font = SECTION_FONT
     ws.cell(row=start_row, column=start_col).fill = SECTION_FILL
 
-    ws.cell(row=start_row + 1, column=start_col, value="标签").font = SECTION_FONT
+    ws.cell(row=start_row + 1, column=start_col, value="分类").font = SECTION_FONT
     ws.cell(row=start_row + 1, column=start_col).fill = HEADER_FILL
     for offset, month in enumerate(monthly_label_dist.columns, start=1):
         cell = ws.cell(row=start_row + 1, column=start_col + offset, value=month)
         cell.font = SECTION_FONT
         cell.fill = HEADER_FILL
         cell.alignment = Alignment(horizontal="center")
+    total_header = ws.cell(
+        row=start_row + 1,
+        column=start_col + len(monthly_label_dist.columns) + 1,
+        value="Q1合计",
+    )
+    total_header.font = SECTION_FONT
+    total_header.fill = HEADER_FILL
+    total_header.alignment = Alignment(horizontal="center")
 
     for row_offset, (label, values) in enumerate(monthly_label_dist.iterrows(), start=2):
         ws.cell(row=start_row + row_offset, column=start_col, value=label)
         for col_offset, value in enumerate(values.tolist(), start=1):
             ws.cell(row=start_row + row_offset, column=start_col + col_offset, value=int(value))
+        ws.cell(
+            row=start_row + row_offset,
+            column=start_col + len(monthly_label_dist.columns) + 1,
+            value=int(sum(values.tolist())),
+        )
 
-    dist_chart = LineChart()
+    dist_chart = BarChart()
+    dist_chart.type = "bar"
+    dist_chart.grouping = "stacked"
+    dist_chart.overlap = 100
     dist_chart.style = 10
-    dist_chart.title = "各标签月度分布"
-    dist_chart.y_axis.title = "提及次数"
-    dist_chart.x_axis.title = "月份"
+    dist_chart.title = "各领域月度分布"
+    dist_chart.x_axis.title = "提及次数"
+    dist_chart.y_axis.title = "领域"
     dist_chart.height = 10
     dist_chart.width = 18
     data_min_row = start_row + 1
@@ -337,11 +353,10 @@ def write_monthly_sheet(
     data_max_col = start_col + len(monthly_label_dist.columns)
     dist_chart.add_data(
         Reference(ws, min_col=start_col + 1, min_row=data_min_row, max_col=data_max_col, max_row=data_max_row),
-        from_rows=True,
         titles_from_data=True,
     )
     dist_chart.set_categories(
-        Reference(ws, min_col=start_col + 1, min_row=start_row + 1, max_col=data_max_col, max_row=start_row + 1)
+        Reference(ws, min_col=start_col, min_row=start_row + 2, max_row=data_max_row)
     )
     dist_chart.legend.position = "r"
     ws.add_chart(dist_chart, "J2")
