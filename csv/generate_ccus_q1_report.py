@@ -1,81 +1,76 @@
-import os
 from pathlib import Path
 
 import pandas as pd
-
-
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
-
-import matplotlib.pyplot as plt
+from openpyxl import Workbook
+from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.styles import Alignment, Font, PatternFill
 
 
 BASE_DIR = Path(__file__).resolve().parent
 NEWS_CSV = BASE_DIR / "carbonherald_q1_2026_news.csv"
 TAG_COUNTS_CSV = BASE_DIR / "carbonherald_q1_2026_tag_counts.csv"
-
-BAR_PNG = BASE_DIR / "ccus_q1_2026_label_bar.png"
-PIE_PNG = BASE_DIR / "ccus_q1_2026_label_pie.png"
-MONTHLY_PNG = BASE_DIR / "ccus_q1_2026_monthly_trend.png"
-REPORT_MD = BASE_DIR / "ccus_q1_2026_brief_report.md"
+REPORT_XLSX = BASE_DIR / "ccus_q1_2026_中文分析报告.xlsx"
 MIN_NEWS_COUNT = 15
 
+LABEL_ZH = {
+    "Removal": "碳移除",
+    "Capture": "碳捕集",
+    "Storage": "碳封存",
+    "Biomass": "生物质",
+    "Markets": "碳市场",
+    "Direct Air Capture": "直接空气捕集",
+    "Mineralization": "矿化",
+    "Policy": "政策",
+    "Forests": "森林碳汇",
+    "Farming": "农业碳汇",
+    "Utilization": "碳利用",
+    "BECCS": "生物质能碳捕集与封存",
+    "Ocean": "海洋碳汇",
+}
 
-def save_label_bar(tag_counts: pd.DataFrame) -> None:
-    fig, ax = plt.subplots(figsize=(11, 6))
-    ax.bar(tag_counts["label"], tag_counts["news_count"], color="#2F6B7C")
-    ax.set_title("CCUS Q1 2026 News by Domain")
-    ax.set_xlabel("Domain")
-    ax.set_ylabel("News Count")
-    ax.tick_params(axis="x", rotation=40)
+SOURCE_CATEGORY_ZH = {
+    "removal": "碳移除",
+    "capture": "碳捕集",
+    "storage": "碳封存",
+    "utilization": "碳利用",
+    "policy": "政策",
+    "markets": "碳市场",
+}
 
-    for idx, value in enumerate(tag_counts["news_count"]):
-        ax.text(idx, value + 1, str(value), ha="center", va="bottom", fontsize=9)
+HEADER_FILL = PatternFill("solid", fgColor="D9EAF7")
+TITLE_FILL = PatternFill("solid", fgColor="1F4E78")
+SECTION_FILL = PatternFill("solid", fgColor="DCE6F1")
+TITLE_FONT = Font(name="Microsoft YaHei", size=14, bold=True, color="FFFFFF")
+SECTION_FONT = Font(name="Microsoft YaHei", size=11, bold=True)
+BODY_FONT = Font(name="Microsoft YaHei", size=10)
 
-    fig.tight_layout()
-    fig.savefig(BAR_PNG, dpi=200)
-    plt.close(fig)
+
+def to_zh_label(label: str) -> str:
+    return LABEL_ZH.get(label, label)
 
 
-def save_label_pie(tag_counts: pd.DataFrame) -> None:
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.pie(
-        tag_counts["news_count"],
-        labels=tag_counts["label"],
-        autopct="%1.1f%%",
-        startangle=90,
-        counterclock=False,
+def prepare_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, dict[str, pd.Series], pd.Series]:
+    news = pd.read_csv(NEWS_CSV)
+    news["date"] = pd.to_datetime(news["date"])
+
+    tag_counts = (
+        pd.read_csv(TAG_COUNTS_CSV)
+        .sort_values("news_count", ascending=False)
+        .query("news_count >= @MIN_NEWS_COUNT")
+        .reset_index(drop=True)
+        .copy()
     )
-    ax.set_title("CCUS Q1 2026 Domain Share")
-    fig.tight_layout()
-    fig.savefig(PIE_PNG, dpi=200)
-    plt.close(fig)
+    tag_counts["label_zh"] = tag_counts["label"].map(to_zh_label)
+    tag_counts["share_pct"] = tag_counts["news_count"] / tag_counts["news_count"].sum()
 
+    monthly_counts = news.groupby(news["date"].dt.strftime("%Y-%m")).size().sort_index()
 
-def save_monthly_trend(news: pd.DataFrame) -> pd.Series:
-    monthly_counts = news.groupby(news["date"].dt.strftime("%Y-%m")).size()
-
-    fig, ax = plt.subplots(figsize=(8, 4.8))
-    ax.plot(monthly_counts.index, monthly_counts.values, marker="o", linewidth=2.2, color="#B85C38")
-    ax.set_title("CCUS Q1 2026 Monthly News Trend")
-    ax.set_xlabel("Month")
-    ax.set_ylabel("News Count")
-    ax.grid(axis="y", linestyle="--", alpha=0.35)
-
-    for x, y in zip(monthly_counts.index, monthly_counts.values):
-        ax.text(x, y + 1, str(int(y)), ha="center", va="bottom", fontsize=9)
-
-    fig.tight_layout()
-    fig.savefig(MONTHLY_PNG, dpi=200)
-    plt.close(fig)
-    return monthly_counts
-
-
-def build_report(news: pd.DataFrame, tag_counts: pd.DataFrame, monthly_counts: pd.Series) -> str:
-    total_news = len(news)
-    total_tag_mentions = int(tag_counts["news_count"].sum())
-
-    top3 = tag_counts.head(3).copy()
-    top3["share"] = top3["news_count"] / total_tag_mentions * 100
+    top_labels_by_month = {}
+    for month, group in news.groupby(news["date"].dt.strftime("%Y-%m")):
+        counts = group["labels"].fillna("").str.split("|").explode().replace("", pd.NA).dropna().value_counts().head(3)
+        counts.index = counts.index.map(to_zh_label)
+        top_labels_by_month[month] = counts
 
     source_counts = (
         news["source_categories"]
@@ -87,96 +82,282 @@ def build_report(news: pd.DataFrame, tag_counts: pd.DataFrame, monthly_counts: p
         .value_counts()
     )
 
-    monthly_delta = monthly_counts.diff()
+    return news, tag_counts, monthly_counts, top_labels_by_month, source_counts
+
+
+def build_summary_lines(
+    news: pd.DataFrame,
+    tag_counts: pd.DataFrame,
+    monthly_counts: pd.Series,
+    top_labels_by_month: dict[str, pd.Series],
+    source_counts: pd.Series,
+) -> list[str]:
+    total_news = len(news)
+    total_tag_mentions = int(tag_counts["news_count"].sum())
+    top3 = tag_counts.head(3)
     max_month = monthly_counts.idxmax()
     min_month = monthly_counts.idxmin()
+    monthly_delta = monthly_counts.diff()
 
-    top_labels_by_month = {}
-    for month, group in news.groupby(news["date"].dt.strftime("%Y-%m")):
-        top_labels_by_month[month] = (
-            group["labels"].fillna("").str.split("|").explode().replace("", pd.NA).dropna().value_counts().head(3)
-        )
-
-    lines = [
-        "# CCUS 2026年一季度趋势简报",
-        "",
-        "## 1. 数据范围",
-        f"- 新闻明细文件：`{NEWS_CSV.name}`",
-        f"- 标签统计文件：`{TAG_COUNTS_CSV.name}`",
-        "- 统计区间：2026-01-01 至 2026-03-31",
-        f"- 新闻总量：{total_news} 篇",
-        f"- 纳入统计的标签阈值：不少于 {MIN_NEWS_COUNT} 次",
-        f"- 纳入统计的标签提及量：{total_tag_mentions} 次",
-        "",
-        "## 2. 核心结论",
-        f"- 一季度新闻量总体稳定，1月 {int(monthly_counts.iloc[0])} 篇，2月 {int(monthly_counts.iloc[1])} 篇，3月 {int(monthly_counts.iloc[2])} 篇，峰值出现在 {max_month}，低点出现在 {min_month}。",
-        f"- 领域关注度高度集中在 `Removal`、`Capture` 和 `Storage`。三者合计 {int(top3['news_count'].sum())} 次，占全部标签提及的 {top3['news_count'].sum() / total_tag_mentions * 100:.1f}%。",
-        f"- `Removal` 连续三个月保持第一，分别为 {int(top_labels_by_month['2026-01'].iloc[0])}、{int(top_labels_by_month['2026-02'].iloc[0])}、{int(top_labels_by_month['2026-03'].iloc[0])} 次，说明碳移除仍是季度主线。",
-        f"- `Capture` 在 2 月达到季度内月度高点 {int(top_labels_by_month['2026-02'].get('Capture', 0))} 次，随后 3 月回落至 {int(top_labels_by_month['2026-03'].get('Capture', 0))} 次，反映捕集项目新闻在 2 月更集中。",
-        f"- 来源类别上，`removal` 相关新闻 {int(source_counts.get('removal', 0))} 条，`capture` 相关新闻 {int(source_counts.get('capture', 0))} 条，前者略高，显示媒体关注仍偏向移除型技术与项目进展。",
-        "",
-        "## 3. 领域分布",
+    removal_by_month = [
+        int(top_labels_by_month.get(month, pd.Series(dtype="int64")).get("碳移除", 0))
+        for month in ["2026-01", "2026-02", "2026-03"]
     ]
 
-    for _, row in tag_counts.iterrows():
-        share = row["news_count"] / total_tag_mentions * 100
-        lines.append(f"- {row['label']}: {int(row['news_count'])} 次，占比 {share:.1f}%")
+    lines = [
+        "一、数据范围",
+        f"新闻明细文件：{NEWS_CSV.name}",
+        f"标签统计文件：{TAG_COUNTS_CSV.name}",
+        "统计区间：2026-01-01 至 2026-03-31",
+        f"新闻总量：{total_news} 篇",
+        f"纳入统计的标签阈值：不少于 {MIN_NEWS_COUNT} 次",
+        f"纳入统计的标签提及量：{total_tag_mentions} 次",
+        "",
+        "二、核心结论",
+        (
+            f"一季度新闻量总体稳定，1月 {int(monthly_counts['2026-01'])} 篇，"
+            f"2月 {int(monthly_counts['2026-02'])} 篇，3月 {int(monthly_counts['2026-03'])} 篇，"
+            f"峰值出现在 {max_month}，低点出现在 {min_month}。"
+        ),
+        (
+            f"领域关注度高度集中在“{top3.iloc[0]['label_zh']}”、“{top3.iloc[1]['label_zh']}”和“{top3.iloc[2]['label_zh']}”。"
+            f"三者合计 {int(top3['news_count'].sum())} 次，占全部标签提及的 "
+            f"{top3['news_count'].sum() / total_tag_mentions * 100:.1f}%。"
+        ),
+        (
+            f"“碳移除”连续三个月保持第一，分别为 {removal_by_month[0]}、{removal_by_month[1]}、"
+            f"{removal_by_month[2]} 次，说明碳移除仍是季度主线。"
+        ),
+        (
+            f"“碳捕集”在 2026-02 达到季度内月度高点 "
+            f"{int(top_labels_by_month['2026-02'].get('碳捕集', 0))} 次，"
+            f"随后 2026-03 回落至 {int(top_labels_by_month['2026-03'].get('碳捕集', 0))} 次。"
+        ),
+        (
+            f"来源类别上，“{SOURCE_CATEGORY_ZH.get('removal', 'removal')}”相关新闻 "
+            f"{int(source_counts.get('removal', 0))} 条，"
+            f"“{SOURCE_CATEGORY_ZH.get('capture', 'capture')}”相关新闻 "
+            f"{int(source_counts.get('capture', 0))} 条，前者略高。"
+        ),
+        "",
+        "三、月度走势",
+        f"2026-01：{int(monthly_counts['2026-01'])} 篇，作为基准月。",
+        f"2026-02：{int(monthly_counts['2026-02'])} 篇，较 1 月变动 {int(monthly_delta['2026-02']):+d} 篇。",
+        f"2026-03：{int(monthly_counts['2026-03'])} 篇，较 2 月变动 {int(monthly_delta['2026-03']):+d} 篇。",
+        "",
+        "各月前三标签：",
+    ]
+
+    for month in ["2026-01", "2026-02", "2026-03"]:
+        counts = top_labels_by_month.get(month, pd.Series(dtype="int64"))
+        summary = "，".join(f"{label} {int(value)} 次" for label, value in counts.items())
+        lines.append(f"{month}：{summary}")
 
     lines.extend(
         [
             "",
-            "## 4. 月度走势",
-            f"- 2026-01: {int(monthly_counts['2026-01'])} 篇，环比基准月。",
-            f"- 2026-02: {int(monthly_counts['2026-02'])} 篇，较 1 月变动 {int(monthly_delta['2026-02']):+d} 篇。",
-            f"- 2026-03: {int(monthly_counts['2026-03'])} 篇，较 2 月变动 {int(monthly_delta['2026-03']):+d} 篇。",
-            "",
-            "各月前三标签：",
+            "四、简要判断",
+            "从季度节奏看，新闻总量没有剧烈波动，说明 CCUS 议题保持持续曝光，而非由单一事件驱动。",
+            "从结构看，“碳移除”与“碳捕集”形成双核心，其中移除相关话题更稳定，捕集相关话题更容易受项目签约、融资或政策节点影响。",
+            "“碳市场”“政策”“碳利用”等标签占比次一级，说明产业化与制度建设议题已形成辅助支撑，但尚未超过技术与项目本体的关注度。",
         ]
     )
+    return lines
 
-    for month, counts in top_labels_by_month.items():
-        summary = ", ".join(f"{label} {int(value)}" for label, value in counts.items())
-        lines.append(f"- {month}: {summary}")
 
-    lines.extend(
-        [
-            "",
-            "## 5. 图表文件",
-            f"- 条形图：`{BAR_PNG.name}`",
-            f"- 饼形图：`{PIE_PNG.name}`",
-            f"- 月度趋势图：`{MONTHLY_PNG.name}`",
-            "",
-            "## 6. 简要判断",
-            "- 从季度内节奏看，新闻总量没有剧烈波动，说明 CCUS 议题保持持续曝光，而非由单一事件驱动。",
-            "- 从结构看，`Removal` 与 `Capture` 形成双核心，其中移除相关话题更稳定，捕集相关话题更容易受项目签约、融资或政策节点影响。",
-            "- `Markets`、`Policy`、`Utilization` 等标签占比次一级，说明产业化与制度建设议题已形成辅助支撑，但尚未超过技术与项目本体的关注度。",
-        ]
+def style_sheet(ws) -> None:
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.font = BODY_FONT
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+
+def write_summary_sheet(ws, summary_lines: list[str]) -> None:
+    ws.title = "摘要说明"
+    ws.merge_cells("A1:D1")
+    ws["A1"] = "CCUS 2026年一季度中文分析报告"
+    ws["A1"].font = TITLE_FONT
+    ws["A1"].fill = TITLE_FILL
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 24
+
+    row = 3
+    for line in summary_lines:
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+        cell = ws.cell(row=row, column=1, value=line)
+        if line and line[1:2] == "、":
+            cell.font = SECTION_FONT
+            cell.fill = SECTION_FILL
+        else:
+            cell.font = BODY_FONT
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        row += 1
+
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 28
+    ws.column_dimensions["C"].width = 28
+    ws.column_dimensions["D"].width = 28
+
+
+def write_tag_sheet(ws, tag_counts: pd.DataFrame) -> None:
+    ws.title = "标签统计"
+    headers = ["英文标签", "中文标签", "提及次数", "占比"]
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = SECTION_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center")
+
+    for idx, row in enumerate(tag_counts.itertuples(index=False), start=2):
+        ws.cell(row=idx, column=1, value=row.label)
+        ws.cell(row=idx, column=2, value=row.label_zh)
+        ws.cell(row=idx, column=3, value=int(row.news_count))
+        pct_cell = ws.cell(row=idx, column=4, value=float(row.share_pct))
+        pct_cell.number_format = "0.0%"
+
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 22
+    ws.column_dimensions["C"].width = 12
+    ws.column_dimensions["D"].width = 12
+    ws.freeze_panes = "A2"
+
+    max_row = len(tag_counts) + 1
+    category_ref = Reference(ws, min_col=2, min_row=2, max_row=max_row)
+    data_ref = Reference(ws, min_col=3, min_row=1, max_row=max_row)
+
+    bar_chart = BarChart()
+    bar_chart.type = "bar"
+    bar_chart.style = 10
+    bar_chart.title = "CCUS 各领域新闻提及次数"
+    bar_chart.y_axis.title = "领域"
+    bar_chart.x_axis.title = "提及次数"
+    bar_chart.height = 8
+    bar_chart.width = 16
+    bar_chart.add_data(data_ref, titles_from_data=True)
+    bar_chart.set_categories(category_ref)
+    bar_chart.legend = None
+    bar_chart.dLbls = DataLabelList()
+    bar_chart.dLbls.showVal = True
+    ws.add_chart(bar_chart, "F2")
+
+    pie_chart = PieChart()
+    pie_chart.style = 10
+    pie_chart.title = "CCUS 各领域占比"
+    pie_chart.height = 10
+    pie_chart.width = 12
+    pie_chart.add_data(Reference(ws, min_col=3, min_row=1, max_row=max_row), titles_from_data=True)
+    pie_chart.set_categories(category_ref)
+    pie_chart.dLbls = DataLabelList()
+    pie_chart.dLbls.showPercent = True
+    pie_chart.dLbls.showLeaderLines = True
+    pie_chart.dLbls.showLegendKey = False
+    ws.add_chart(pie_chart, "F20")
+
+
+def write_monthly_sheet(ws, monthly_counts: pd.Series, top_labels_by_month: dict[str, pd.Series]) -> None:
+    ws.title = "月度趋势"
+    headers = ["月份", "新闻数量", "前三标签摘要"]
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = SECTION_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center")
+
+    months = list(monthly_counts.index)
+    for idx, month in enumerate(months, start=2):
+        ws.cell(row=idx, column=1, value=month)
+        ws.cell(row=idx, column=2, value=int(monthly_counts[month]))
+        summary = "，".join(f"{label} {int(value)} 次" for label, value in top_labels_by_month.get(month, pd.Series(dtype='int64')).items())
+        ws.cell(row=idx, column=3, value=summary)
+
+    ws.column_dimensions["A"].width = 14
+    ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 40
+    ws.freeze_panes = "A2"
+
+    line_chart = LineChart()
+    line_chart.style = 10
+    line_chart.title = "CCUS 月度新闻走势"
+    line_chart.y_axis.title = "新闻数量"
+    line_chart.x_axis.title = "月份"
+    line_chart.height = 8
+    line_chart.width = 16
+    line_chart.add_data(Reference(ws, min_col=2, min_row=1, max_row=len(months) + 1), titles_from_data=True)
+    line_chart.set_categories(Reference(ws, min_col=1, min_row=2, max_row=len(months) + 1))
+    line_chart.dLbls = DataLabelList()
+    line_chart.dLbls.showVal = True
+    ws.add_chart(line_chart, "E2")
+
+
+def write_news_sheet(ws, news: pd.DataFrame) -> None:
+    ws.title = "新闻明细"
+    output = news.copy()
+    output["labels_zh"] = (
+        output["labels"]
+        .fillna("")
+        .str.split("|")
+        .apply(lambda items: "|".join(to_zh_label(item) for item in items if item))
+    )
+    output["source_categories_zh"] = (
+        output["source_categories"]
+        .fillna("")
+        .str.split("|")
+        .apply(lambda items: "|".join(SOURCE_CATEGORY_ZH.get(item, item) for item in items if item))
     )
 
-    return "\n".join(lines) + "\n"
+    headers = ["日期", "标题", "原始标签", "中文标签", "链接", "原始来源类别", "中文来源类别"]
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = SECTION_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center")
+
+    for row_idx, row in enumerate(output.itertuples(index=False), start=2):
+        ws.cell(row=row_idx, column=1, value=row.date.strftime("%Y-%m-%d"))
+        ws.cell(row=row_idx, column=2, value=row.title)
+        ws.cell(row=row_idx, column=3, value=row.labels)
+        ws.cell(row=row_idx, column=4, value=row.labels_zh)
+        ws.cell(row=row_idx, column=5, value=row.url)
+        ws.cell(row=row_idx, column=6, value=row.source_categories)
+        ws.cell(row=row_idx, column=7, value=row.source_categories_zh)
+
+    ws.column_dimensions["A"].width = 12
+    ws.column_dimensions["B"].width = 70
+    ws.column_dimensions["C"].width = 24
+    ws.column_dimensions["D"].width = 24
+    ws.column_dimensions["E"].width = 80
+    ws.column_dimensions["F"].width = 20
+    ws.column_dimensions["G"].width = 20
+    ws.freeze_panes = "A2"
+
+
+def build_workbook(
+    news: pd.DataFrame,
+    tag_counts: pd.DataFrame,
+    monthly_counts: pd.Series,
+    top_labels_by_month: dict[str, pd.Series],
+    source_counts: pd.Series,
+) -> Workbook:
+    wb = Workbook()
+    summary_ws = wb.active
+
+    summary_lines = build_summary_lines(news, tag_counts, monthly_counts, top_labels_by_month, source_counts)
+    write_summary_sheet(summary_ws, summary_lines)
+    write_tag_sheet(wb.create_sheet(), tag_counts)
+    write_monthly_sheet(wb.create_sheet(), monthly_counts, top_labels_by_month)
+    write_news_sheet(wb.create_sheet(), news)
+
+    for ws in wb.worksheets:
+        style_sheet(ws)
+
+    return wb
 
 
 def main() -> None:
-    news = pd.read_csv(NEWS_CSV)
-    tag_counts = (
-        pd.read_csv(TAG_COUNTS_CSV)
-        .sort_values("news_count", ascending=False)
-        .query("news_count >= @MIN_NEWS_COUNT")
-        .reset_index(drop=True)
-    )
-    news["date"] = pd.to_datetime(news["date"])
-
-    save_label_bar(tag_counts)
-    save_label_pie(tag_counts)
-    monthly_counts = save_monthly_trend(news)
-
-    report = build_report(news, tag_counts, monthly_counts)
-    REPORT_MD.write_text(report, encoding="utf-8")
-
-    print(f"Generated: {REPORT_MD.name}")
-    print(f"Generated: {BAR_PNG.name}")
-    print(f"Generated: {PIE_PNG.name}")
-    print(f"Generated: {MONTHLY_PNG.name}")
+    news, tag_counts, monthly_counts, top_labels_by_month, source_counts = prepare_data()
+    workbook = build_workbook(news, tag_counts, monthly_counts, top_labels_by_month, source_counts)
+    workbook.save(REPORT_XLSX)
+    print(f"Generated: {REPORT_XLSX.name}")
 
 
 if __name__ == "__main__":
