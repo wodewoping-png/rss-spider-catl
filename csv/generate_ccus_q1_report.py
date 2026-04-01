@@ -50,7 +50,7 @@ def to_zh_label(label: str) -> str:
     return LABEL_ZH.get(label, label)
 
 
-def prepare_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, dict[str, pd.Series], pd.Series]:
+def prepare_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, dict[str, pd.Series], pd.Series, pd.DataFrame]:
     news = pd.read_csv(NEWS_CSV)
     news["date"] = pd.to_datetime(news["date"])
 
@@ -82,7 +82,21 @@ def prepare_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, dict[str, pd.
         .value_counts()
     )
 
-    return news, tag_counts, monthly_counts, top_labels_by_month, source_counts
+    monthly_label_dist = (
+        news.assign(month=news["date"].dt.strftime("%Y-%m"))
+        .assign(label=news["labels"].fillna("").str.split("|"))
+        .explode("label")
+        .replace({"label": {"": pd.NA}})
+        .dropna(subset=["label"])
+        .assign(label_zh=lambda df: df["label"].map(to_zh_label))
+        .groupby(["label_zh", "month"])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(tag_counts["label_zh"].tolist(), fill_value=0)
+    )
+    monthly_label_dist = monthly_label_dist.reindex(sorted(monthly_counts.index), axis=1, fill_value=0)
+
+    return news, tag_counts, monthly_counts, top_labels_by_month, source_counts, monthly_label_dist
 
 
 def build_summary_lines(
@@ -254,7 +268,12 @@ def write_tag_sheet(ws, tag_counts: pd.DataFrame) -> None:
     ws.add_chart(pie_chart, "F20")
 
 
-def write_monthly_sheet(ws, monthly_counts: pd.Series, top_labels_by_month: dict[str, pd.Series]) -> None:
+def write_monthly_sheet(
+    ws,
+    monthly_counts: pd.Series,
+    top_labels_by_month: dict[str, pd.Series],
+    monthly_label_dist: pd.DataFrame,
+) -> None:
     ws.title = "月度趋势"
     headers = ["月份", "新闻数量", "前三标签摘要"]
     for col, header in enumerate(headers, start=1):
@@ -287,6 +306,45 @@ def write_monthly_sheet(ws, monthly_counts: pd.Series, top_labels_by_month: dict
     line_chart.dLbls = DataLabelList()
     line_chart.dLbls.showVal = True
     ws.add_chart(line_chart, "E2")
+
+    start_row = 8
+    start_col = 5
+    ws.cell(row=start_row, column=start_col, value="标签月度分布数据").font = SECTION_FONT
+    ws.cell(row=start_row, column=start_col).fill = SECTION_FILL
+
+    ws.cell(row=start_row + 1, column=start_col, value="标签").font = SECTION_FONT
+    ws.cell(row=start_row + 1, column=start_col).fill = HEADER_FILL
+    for offset, month in enumerate(monthly_label_dist.columns, start=1):
+        cell = ws.cell(row=start_row + 1, column=start_col + offset, value=month)
+        cell.font = SECTION_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center")
+
+    for row_offset, (label, values) in enumerate(monthly_label_dist.iterrows(), start=2):
+        ws.cell(row=start_row + row_offset, column=start_col, value=label)
+        for col_offset, value in enumerate(values.tolist(), start=1):
+            ws.cell(row=start_row + row_offset, column=start_col + col_offset, value=int(value))
+
+    dist_chart = LineChart()
+    dist_chart.style = 10
+    dist_chart.title = "各标签月度分布"
+    dist_chart.y_axis.title = "提及次数"
+    dist_chart.x_axis.title = "月份"
+    dist_chart.height = 10
+    dist_chart.width = 18
+    data_min_row = start_row + 1
+    data_max_row = start_row + 1 + len(monthly_label_dist)
+    data_max_col = start_col + len(monthly_label_dist.columns)
+    dist_chart.add_data(
+        Reference(ws, min_col=start_col + 1, min_row=data_min_row, max_col=data_max_col, max_row=data_max_row),
+        from_rows=True,
+        titles_from_data=True,
+    )
+    dist_chart.set_categories(
+        Reference(ws, min_col=start_col + 1, min_row=start_row + 1, max_col=data_max_col, max_row=start_row + 1)
+    )
+    dist_chart.legend.position = "r"
+    ws.add_chart(dist_chart, "J2")
 
 
 def write_news_sheet(ws, news: pd.DataFrame) -> None:
@@ -337,6 +395,7 @@ def build_workbook(
     monthly_counts: pd.Series,
     top_labels_by_month: dict[str, pd.Series],
     source_counts: pd.Series,
+    monthly_label_dist: pd.DataFrame,
 ) -> Workbook:
     wb = Workbook()
     summary_ws = wb.active
@@ -344,7 +403,7 @@ def build_workbook(
     summary_lines = build_summary_lines(news, tag_counts, monthly_counts, top_labels_by_month, source_counts)
     write_summary_sheet(summary_ws, summary_lines)
     write_tag_sheet(wb.create_sheet(), tag_counts)
-    write_monthly_sheet(wb.create_sheet(), monthly_counts, top_labels_by_month)
+    write_monthly_sheet(wb.create_sheet(), monthly_counts, top_labels_by_month, monthly_label_dist)
     write_news_sheet(wb.create_sheet(), news)
 
     for ws in wb.worksheets:
@@ -354,8 +413,15 @@ def build_workbook(
 
 
 def main() -> None:
-    news, tag_counts, monthly_counts, top_labels_by_month, source_counts = prepare_data()
-    workbook = build_workbook(news, tag_counts, monthly_counts, top_labels_by_month, source_counts)
+    news, tag_counts, monthly_counts, top_labels_by_month, source_counts, monthly_label_dist = prepare_data()
+    workbook = build_workbook(
+        news,
+        tag_counts,
+        monthly_counts,
+        top_labels_by_month,
+        source_counts,
+        monthly_label_dist,
+    )
     workbook.save(REPORT_XLSX)
     print(f"Generated: {REPORT_XLSX.name}")
 
