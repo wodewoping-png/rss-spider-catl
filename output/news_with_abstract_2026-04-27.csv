@@ -1,0 +1,340 @@
+﻿title,link,source,published_str,pub_date,doi,last_author,abstract,abstract_source,must_have_abstract
+[ASAP] Topology Engineering of Heteroatom-Embedded Xanthones as Hole Conductors for Efficient and Stable Air-Processed Perovskite Solar Cells,http://dx.doi.org/10.1021/acsenergylett.6c00983,ACS Energy Letters: Latest Articles (ACS Publications),2026-04-24 15:49:44 UTC,2026-04-24 15:49:44+00:00,10.1021/acsenergylett.6c00983,Keyou Yan,"Organic semiconductors that simultaneously optimize electronic and structural chemical properties are essential for perovskite solar cells (PSCs), yet the design principles enabling such a dual optimization remain poorly understood. Here, we develop topology engineering by embedding carbonyl groups into different molecular scaffolds and synthesize a family of hole conductors (ZW1-ZW3). Topology engineering endows the three molecules with externally positioned or sterically hindered carbonyls, leading to different molecular conformations and electronic properties. Among them, enabled by the large dipole moment, favorable energy levels, edge-on molecular packing, and strengthened interfacial bonding, ZW3 yields outstanding device performance both as a dopant-free hole conductor and as an interfacial modifier, achieving efficiencies of 23.0% and 25.1%, respectively. Particularly, dopant-free ZW3-based PSCs retain 85% of their initial efficiency under maximum power point for 1000 h (T80 > 1380 h). This work establishes a molecular design principle of carbonyl topology engineering for organic hole conductors.",openalex,1
+[ASAP] A Simple Model for the Oxygen Evolution Activities of Transition Metal Chalcogenides,http://dx.doi.org/10.1021/acsenergylett.6c00778,ACS Energy Letters: Latest Articles (ACS Publications),2026-04-24 18:46:42 UTC,2026-04-24 18:46:42+00:00,10.1021/acsenergylett.6c00778,Prashanth W. Menezes,"Transition metal chalcogenides (TMCs) are among the most investigated precatalysts for alkaline oxygen evolution reaction (OER). However, the origins of their activity and the role of the nature of chalcogen atoms remain unclear. To address these questions, we developed analogous single-source precursors to synthesize structurally and morphologically alike CoS, CoSe, and CoTe phases, serving as ideal starting materials to isolate the chalcogens’ role for the OER. We uncover the importance of reliable active site quantification, intrinsic activity evaluation, and monitoring in situ structural changes during OER. In our electrochemical analyses, special emphasis is placed on accurate redox activity evaluation. Our results show that the in situ-formed layered oxyhydroxide phases have similar intrinsic activities. The nature of the chalcogen atom influences the number of active sites, leading to the geometric activity trend: CoSe > CoS > CoTe. These insights are crucial for the understanding and development of future electrocatalysts and application-oriented devices.",openalex,1
+Anti-topological crystal and non-Abelian liquid in twisted semiconductor bilayers,https://www.nature.com/articles/s41467-026-70916-z,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-70916-z,Liang Fu,"We show that electron crystals compete closely with non-Abelian fractional Chern insulators in the half-filled second moiré band of twisted bilayer MoTe2. Depending on the twist angle and microscopic model, these crystals can have non-zero or zero Chern numbers C. The C = 0 crystal occurs because contributions to the total Chern number from the full first band (+1) and half-full second band (-1) cancel. This is counterintuitive because the first two non-interacting bands in a given valley have the same Chern number + 1. For these two reasons, we call this crystal an anti-topological crystal. The anti-topological crystal is a novel type of electron crystal that may occur in systems with multiple Chern bands at filling factors n > 1.",nature_html,0
+Dorsal prefrontal cortex drives perseverative behavior in mice,https://www.nature.com/articles/s41467-026-71664-w,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-71664-w,K. D. Harris,"Perseveration – repeating one action when others would generate larger rewards – is a common behavior, but neither its purpose nor neuronal mechanisms are understood. Here we demonstrate a neural correlate and causal role of dorsal prefrontal cortex, specifically anterior secondary motor cortex (MOs) in perseveration in mice performing a dynamic reward learning task. An auditory go cue signaled mice to turn a wheel either left or right, with the reward probability of each action switching in blocks. Mice perseverated, gaining suboptimal reward, but were faster when making repeated choices. Neuropixels recordings found neurons whose activity correlated with perseveration and predicted rapid reaction times, almost exclusively in anterior MOs. Optogenetically inhibiting this region during the choice period reduced perseveration and slowed reactions. In contrast, inactivating medial prefrontal cortex at choice time had no effect, but inactivating it after reward delivery impaired learning. In this task, therefore, anterior MOs reflects a perseverative decision variable, and is necessary for mediating the effect of this decision variable on choice and reaction time.",nature_html,0
+Beyond MPB engineering: enhanced piezoelectricity and thermal stability assisted by high-entropy design,https://www.nature.com/articles/s41467-026-72335-6,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72335-6,Shujun Zhang,"The pursuit of ferroelectric materials that combine a high piezoelectric response with robust thermal stability remains a paramount challenge. We introduce a strategy that integrates morphotropic phase boundary (MPB) engineering with high-entropy (HE) design in a novel quinary Pb(Yb1/2Nb1/2)O3-Pb(Zn1/3Nb2/3)O3-Pb(Fe1/2Nb1/2)O3-PbZrO3-PbTiO3 (PYN-PZN-PFN-PZ-PT) perovskite ceramic. Compared to a medium-entropy counterpart, the high-entropy composition yields a superior piezoelectric coefficient of 580 pC/N and exceptional thermal stability, with performance retained up to 285 °C. This enhancement arises from two synergistic effects of the HE design: a stabilized, flattened free-energy landscape that promotes a favorable nanoscale domain structure and improves depolarization behavior, together with higher electrical resistivity (1012 Ω·cm at 250 °C) arising from HE-driven grain refinement and suppressed charge transport. This work demonstrates that HE design serves as an effective strategy to mitigate the traditional trade-off between piezoelectric response and depolarization temperature in Pb-based relaxor ferroelectrics.",nature_html,0
+How much do zooplankton and fine-scale processes matter for the ocean biological pump?,https://www.nature.com/articles/s41467-026-72144-x,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72144-x,Jessica Y. Luo,"The ocean biological carbon pump stores carbon away from the atmosphere through multiple pathways, including gravitational settling, physical transport, and organism vertical migration. Robust assessments of its magnitude remain challenging. Traditional approaches often quantify pathways separately, risking double-counting, missing high-frequency processes such as fine-scale physics and daily vertical migration over large scales, and emphasizing particulate carbon while overlooking non-particulate fluxes. Here, we apply a unified framework that quantifies all pathways simultaneously in a high-resolution (3 km) idealized North Atlantic model resolving seasonal biophysical dynamics, including zooplankton migration, from kilometer-scale fronts to regional biomes. We show that fine-scale physical and migrant pumps together contribute 15-20% of carbon storage. Their storage is dominated by non-particulate carbon fluxes (dissolved organic carbon transport, zooplankton respiration). Fine-scale dynamics modulate export depth and storage timescales both directly, through physical transport, and indirectly, by shaping fast-sinking carbon-rich filaments and controlling zooplankton migration depth. Adequately measuring and representing these pathways in next-generation observations and models is key to quantify carbon storage and its response to variability.",nature_html,0
+Artificial chemotaxis in micro/nanomotors,https://www.nature.com/articles/s41467-026-72137-w,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72137-w,Martin Pumera,"Chemotaxis is the directional motion of objects in response to chemical gradients, a process that drives navigation in micro/nanomotors, enabling a bio-inspired transition toward autonomous direction control. However, current studies lack consistent mechanistic justification, definition, and standardized experimental validation. This review summarizes key physical principles governing active chemotaxis, surveys experimental strategies for generating chemical gradients and quantifying responses, and examines how individual chemotactic mechanisms and long-range, anisotropic chemical interactions give rise to emergent collective behaviors, while outlining prospective applications. Together, these efforts establish a principled engineering framework for advancing chemotaxis as a robust functional navigation modality in synthetic micro/nanomotors.",nature_html,0
+Power management for triboelectric and electrostatic generators enabling continuous and stable power delivery,https://www.nature.com/articles/s41467-026-72323-w,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72323-w,Xiongying Ye,"Power management is essential for effectively utilizing energy harvested from triboelectric and electrostatic generators. However, current strategies suffer from control and conversion challenges such as inefficient switch designs and load-dependent outputs, resulting in substantial performance degradation when powering practical electronics. Here, we present an efficient and universal power management strategy to improve energy utilization. It features a self-powered peak-detection switch for enhancing energy harvesting, a voltage elevation strategy to improve AC–DC conversion, and an energy regulation module that dynamically allocates the harvested energy to ensure a continuous and stable power supply. Benefiting from the switch’s power-boosting mechanism, the output power after power management reaches 1.08 times the generator’s optimal AC output. This enables the reliable operation of a 20 dBm LoRa node powered by a 55-mm-radius electret generator at 36 rpm. This work facilitates the integration of triboelectric and electrostatic generators into practical electronic systems.",nature_html,0
+Nanogalvanic cell catalysts: bridging electrochemical and thermal catalysis,https://academic.oup.com/nsr/advance-article/doi/10.1093/nsr/nwag186/8662458?rss=1,National Science Review Advance Access,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1093/nsr/nwag186,Jiannian Yao,"Selective nitroarene hydrogenation to anilines faces an intractable activity-selectivity trade-off: conventional Horiuti-Polanyi (H-P) catalysis triggers over-hydrogenation of coexisting unsaturated groups via free H* species. Herein, we report Pt@C/TiO2 as a nanogalvanic cell catalyst (NGC) that bridges electrochemical and thermal catalysis by integrating concerted proton–electron transfer (CPET) into heterogeneous catalysis. In Pt@C/TiO2, Pt nanoparticles wrapped by an ultrathin carbon shell catalyze H2 oxidation, whereas TiO2 hosts nitro reduction. Protons migrate through solvent hydrogen-bond networks and electrons transfer through the conductive TiO2 support, enabling a CPET-like reduction that largely bypasses the H-P route without direct substrate-Pt contact. Electrochemical coupling analyses corroborate galvanic-cell operation. Pt@C/TiO2 affords near-quantitative conversion and > 97% selectivity to 4-aminostyrene from 4-nitrostyrene, while the carbon shell blocks CO/sulfur access to Pt, delivering exceptional poisoning tolerance and stability. This NGC paradigm offers a general strategy for site-separated redox catalysis combining electrocatalytic selectivity with thermal-process simplicity.",rss_oup,0
+China’s freshwater lake storage hotspots revealed by bathymetry and typology mapping,https://academic.oup.com/nsr/advance-article/doi/10.1093/nsr/nwag245/8662459?rss=1,National Science Review Advance Access,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1093/nsr/nwag245,Yunlin Zhang,"A nation’s freshwater security is fundamentally constrained by the total volume and spatial distribution of its water resources, yet this first-order information remains remarkably uncertain at large scales. For China, home to one-fifth of the world’s population but only 7% of its total renewable freshwater resources, this knowledge gap is particularly critical. While decades of satellite observations have tracked changes in lake surface area and water level, the total storage volume of the nation’s lakes have remained unknown, precluding a robust assessment of its water security. Here, we present the first national-scale bathymetric and typologic assessment of all natural lakes in China larger than 1 km². We reveal a total lake water volume of approximately 1,174 km³ (uncertainty range: 1,081–1,285 km³), comprising ∼335 km³ of freshwater and ∼839 km³ of saline water. While the western interior is numerically dominated by saline lakes, our volumetric assessment reveals a counterintuitive pattern in which a few large open lakes store ∼65% of the nation’s lacustrine freshwater due to their exceptional depth. The freshwater lake hotspots present a marked geographic-demographic contrast. This imbalance results in a more significant disparity in per-capita natural lake freshwater storage, with approximately 20,680 m³ per person in the Tibetan Plateau lake zone versus only 65 m³ in the eastern plain lake zone, a nearly 330-fold difference. Notably, a vast network of reservoirs is concentrated in the populous eastern region, and this distribution of artificial storage helps mitigate the spatial unevenness of total surface freshwater resources. Our findings not only establish a definitive baseline for China’s lake water resources but also demonstrate how lakebed geomorphologic features influence national-scale lacustrine freshwater distribution, highlighting the critical need for targeted protection strategies and the efficient utilization of these lake freshwater reserves.",rss_oup,0
+Click/release reaction and SO2 recycling for multichannel dynamic chiroptical materials,https://www.nature.com/articles/s41467-026-72552-z,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72552-z,Pengyao Xing,"Constructing dynamic chiral materials via a combined covalent and non-covalent strategy remains an emerging and challenging task. Here, we report a unique example of this strategy using a specialized click-and-release reaction to create a multichannel dynamic chiroptical system. We utilize a highly efficient inverse electron demand Diels-Alder reaction between a chiral-moiety-grafted thiophene S,S-dioxide and a cyclooctyne. This reaction effectively disrupts a photoinduced electron transfer pathway, enabling a high quantum yield green fluorescence emission. Furthermore, the reaction occurs in-situ, inducing a structural evolution from nanospheres to vesicles or from micro-sheets to helical nanotubes, which in turn triggers the appearance of circularly polarized luminescence. Crucially, this click reaction releases a SO2 molecule. By introducing a fluorescent dye, we are able to selectively capture the SO2, which activates its red fluorescence and triggers an energy transfer from the green-emitting chromophore. This elegant design allows us to achieve dynamic control over a dual-channel chiroptical system, with independent green and red emissions, mediated synergistically by the click reaction and subsequent SO2 recovery. The efficiency of this in-situ reaction within the aggregates, coupled with the high quantum yield of the products and the exceptional atom economy provided by byproduct recycling, offers a highly effective strategy for constructing chiral supramolecular materials via non-covalent assembly and covalent reaction.",nature_html,0
+HaploC-tools reveal haplotype-specific chromosome conformation and chromatin states,https://www.nature.com/articles/s41467-026-72326-7,Nature Communications,2026-04-25 00:00:00 UTC,2026-04-25 00:00:00+00:00,10.1038/s41467-026-72326-7,Giovanni Ciriello,"The sequences of homologous chromosomes differ in the presence of heterozygous single nucleotide polymorphisms (SNPs). Whether these differences translate into “heterozygous” chromatin three-dimensional structures is still largely unexplored. Here, we design HaploC-tools to optimize whole-chromosome phasing from high-throughput chromosome conformation capture (Hi-C) data and introduce tailored approaches to infer haplotype-specific copy number variants, boundary insulation, and chromatin compartmentalization. We use Haplo-C tools to analyze > 100 Hi-C dataset, including normal and cancer cell models, representing a unique resource to explore haplotype-specific chromatin conformation. Leveraging this dataset, we show that SNPs at CTCF binding sites lead to significantly different contact insulation between homologous chromosomes and discover widespread haplotype-specific compartments in cancer, driven by asymmetric loss of H3K9me3. These results implicate haplotype-specific chromatin configuration as a potential new mechanism of phenotypic reprogramming in disease emergence and progression.",nature_html,0
+"1,4‐Digermacyclopenta‐1,3‐diene: Continuous Cyclic σ*–π Delocalization Enables Aromatic Stabilization in a Heavy‐Element 4π System",https://onlinelibrary.wiley.com/doi/10.1002/anie.7558823?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 05:04:09 UTC,2026-04-25 05:04:09+00:00,10.1002/anie.7558823,Yoshiyuki Mizuhata,"ABSTRACT
+                  
+                    Aromaticity in heavy‐element systems can arise from unconventional modes of cyclic electron delocalization that are not accessible in lighter‐element frameworks. Herein, we report 1,4‐digermacyclopenta‐1,3‐diene as an unusual aromatic system in which a formally 4π electron framework is stabilized through cooperative σ*–π interactions. X‐ray crystallography reveals a nearly planar [Ge
+                    2
+                    C
+                    3
+                    ] ring, while magnetic and electronic analyses (NICS, GIMIC, ACID, and EDDB) consistently indicate significant aromatic stabilization. In particular, GIMIC calculations show a pronounced diatropic ring current with an average strength of +8.38 nA T
+                    −1
+                    . Natural bond orbital analysis reveals that this stabilization originates from σ*–π delocalization involving the Ge–Ge bond and adjacent π orbitals. Despite a low‐lying open‐shell contribution (y ≈ 0.11), the system remains predominantly closed‐shell. Notably, this system represents a rare case in which σ*–π interactions form a continuous cyclic delocalization pathway, resulting in a distinct form of aromatic stabilization.",crossref,0
+Disrupting the Oxidative Stress–Inflammation–Corneal Neovascularization Cycle with Ultrasmall Nanoparticles,https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.73114?af=R,Wiley: Advanced Materials: Table of Contents,2026-04-25 05:07:25 UTC,2026-04-25 05:07:25+00:00,10.1002/adma.73114,Jinhai Huang,"ABSTRACT
+                  Corneal neovascularization (CoNV) is a primary contributor to corneal scarring and vision impairment. During its initiation and progression, inflammatory reactions and oxidative stress synergistically trigger a pathological vicious cycle of oxidative stress, inflammation, and angiogenesis, posing a severe therapeutic challenge. In this study, a noninvasive transepithelial therapeutic strategy using ultrasmall polydopamine nanoparticles (UPDA NPs) with triple effects is developed. Their unique small size, approximately 3 nm, greatly enhances their radical‐scavenging capability and facilitates superior transepithelial delivery. Extensive research demonstrated that the obtained UPDA NPs possess excellent anti‐inflammatory, antioxidant, and anti‐angiogenic properties. By scavenging reactive oxygen species (ROS), activating the nuclear factor erythroid 2–related factor 2 (NRF2) antioxidant pathway, and suppressing multiple proangiogenic signaling cascades, they can disrupt the pathological cycle of inflammation, oxidative stress, and neovascularization at molecular, cellular, and animal levels. In an alkali‐burned mouse model, UPDA NPs notably reduce CoNV area and length, accelerate corneal repair, and exhibit no local or systemic toxicity, providing a new nanomedicine with translational potential for precise treatment of CoNV.",crossref,0
+Integrated CO2 Capture and Conversion Induced by Amines for Effective Electrocatalytic N‐Methylation,https://onlinelibrary.wiley.com/doi/10.1002/anie.2285211?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 05:10:46 UTC,2026-04-25 05:10:46+00:00,10.1002/anie.2285211,Lingjun Kong,"ABSTRACT
+                  
+                    N‐Methylation of amines is a crucial transformation for synthesizing valuable compounds. However, conventional N‐methylation methods often rely on hazardous reagents. The electroreduction of CO
+                    2
+                    as a sustainable C1 source presents an attractive alternative. Nevertheless, the direct electrochemical activation of CO
+                    2
+                    requires high overpotentials, often leading to a low Faradaic efficiency (FE). This study presents a CO
+                    2
+                    capture‒conversion pathway for the N‐methylation of amines. High concentrations of nucleophilic piperidine preferentially capture CO
+                    2
+                    , enabling spontaneous C─N coupling, as confirmed by
+                    13
+                    C nuclear magnetic resonance spectroscopy. Moreover,
+                    N
+                    ‐methyl piperidine (NMP) is produced through an electroreduction process. In situ Raman spectroscopy and theoretical calculations reveal the formation of a key piperidinium intermediate and provide insights into its role in subsequent electroreduction. This pathway effectively suppresses side reactions typical of CO
+                    2
+                    electroreduction, achieving a high NMP FE of 71.6% at −0.6 V versus Ag/AgCl. Furthermore, the CO
+                    2
+                    capture‒conversion pathway produces various N‐methylated amines, such as dimethylamine and 1‐methyl ethylenediamine, with excellent FEs, highlighting the generality and advantages of this approach.",crossref,0
+Luminescent Donor‐Acceptor Radical With Propeller Chirality: Bright and Photostable Red Circularly Polarized Luminescence and Whispering Gallery Mode Resonance,https://onlinelibrary.wiley.com/doi/10.1002/anie.1914320?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 05:10:49 UTC,2026-04-25 05:10:49+00:00,10.1002/anie.1914320,Ken Albrecht,"ABSTRACT
+                  
+                    Luminescent radicals are an emerging class of materials for organic electronics, bioimaging, and quantum applications. Circularly polarized luminescence (CPL) from luminescent radicals with propeller‐type chirality remains challenging because it is difficult to simultaneously achieve high photoluminescence quantum yield (PLQY), high stability, and high racemization barriers. A series of brominated chiral luminescent radicals, CzTTBrM, 2CzTTBrM, and 3CzTTBrM, was obtained by attaching carbazole donors to TTBrM. The donor‐acceptor‐type design induces red to near‐infrared (NIR) emission via charge transfer (CT) excited states with remarkably high PLQY (up to 76%) and high photostability. The new radicals possess high racemization barriers (Δ
+                    G
+                    ‡
+                    (353K) = 27.9–29.1 kcal/mol), allowing the isolation of enantiopure compounds at room temperature. The enantiopure radicals exhibit CPL with broad emission across the red to NIR range (650–800 nm) and display B
+                    CPL
+                    values (0.76–1.1), nearly one order of magnitude higher than that of TTBrM (B
+                    CPL
+                    = 0.16). Moreover, doping these radicals into polystyrene microspheres produces whispering gallery mode (WGM) resonances, marking the first observation of WGM emission from luminescent radicals. This strategy establishes a versatile platform for integrating spin, chirality, and luminescence, offering new opportunities for applications in electroluminescence, bioimaging, and quantum photonics.",crossref,0
+Interfacial Proton‐Coupled Electron Transfer Reverses Water Inhibition for Selective 5‐hydroxymethylfurfural Hydrogenation,https://onlinelibrary.wiley.com/doi/10.1002/anie.5203276?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 05:16:16 UTC,2026-04-25 05:16:16+00:00,10.1002/anie.5203276,Lizhi Zhang,"ABSTRACT
+                  
+                    The selective aqueous hydrogenation of 5‐hydroxymethylfurfural (HMF) to 2,5‐bis(hydroxymethyl)furan (BHMF) is pivotal for biomass valorization. While nanoscale zero‐valent iron (nZVI) offers a sustainable H
+                    2
+                    ‐free alternative, its efficiency is severely suppressed by a rigid interfacial water layer that impedes substrate access and drives non‐selective pathways. Herein, we surmount this limitation by engineering atomically dispersed Ni sites on nZVI to orchestrate a surface proton‐coupled electron transfer (PCET). Mechanistically, single Ni atoms in the electron‐deficient state (Ni
+                    δ+
+                    ) function as “electron pumps”, establishing a direct longitudinal inner‐sphere channel for electron delivery towards the −CHO group of HMF. Concurrently, the Ni
+                    δ+
+                    sites facilitate prompt proton release by weakening hydrogen binding on adjacent lattice oxygen. Ni
+                    δ+
+                    ‐induced electronic modulation transforms proximal lattice Fe into strong Lewis acids to polarize bulk water, creating a continuous lateral proton shuttle to the adsorbed HMF. This orthogonal PCET system drastically boosts electron selectivity from 10.6% (pristine nZVI) to 81.6%, achieving &gt;95% HMF conversion (20–150 mM) with &gt;95% BHMF selectivity under ambient conditions, outperforming pristine nZVI (&lt;10% conversion) by orders of magnitude. This work demonstrates that engineering interfacial PCET pathways can reverse classical solvent inhibition, opening a general route for efficient aqueous hydrogenation.",crossref,0
+Solvent–Anion Counterpoised Electrolyte Enables High‐Rate Magnesium Metal Batteries,https://onlinelibrary.wiley.com/doi/10.1002/anie.2598559?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 05:56:05 UTC,2026-04-25 05:56:05+00:00,10.1002/anie.2598559,Xiaowei Yang,"ABSTRACT
+                  
+                    Magnesium batteries are compelling post‐lithium energy storage candidates but suffer from sluggish charge transfer kinetics, fundamentally restricted by the high energy barrier of Mg
+                    2+
+                    desolvation. Herein, we address the compact and tenacious solvation sheath induced by the high charge density of Mg
+                    2+
+                    , characterized by strong electrostatic binding. To effectively weaken the coordination strength and lower the desolvation barrier, we utilize machine learning to identify electrolytes that energetically balance Mg
+                    2+
+                    ‐solvent and Mg
+                    2+
+                    ‐anion interactions. This counterpoise state leads to a comprehensive weakening of the solvation shell. As corroborated by in situ Raman spectroscopy, this environment facilitates a synchronous desolvation pathway and induces a robust MgH
+                    2
+                    ‐based solid‐electrolyte interphase, fundamentally accelerating interfacial kinetics. The screened amine‐based electrolyte empowers low‐overpotential Mg
+                    2+
+                    reduction of 0.06 V at 1 mA cm
+                    −2
+                    , and full cells with high‐rate performance sustain 50 C cycling, and a Mg/fluorinated carbon cell delivers 918 mAh g
+                    −1
+                    at 0.5 C. This paradigm shifts the design focus from individual solvation to collective energy equilibration in multivalent electrolytes.",crossref,0
+Sodiophilic Hosts With Pseudocapacitive Kinetics for Robust Anode‐Free Sodium Metal Batteries,https://onlinelibrary.wiley.com/doi/10.1002/anie.9106635?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 06:05:36 UTC,2026-04-25 06:05:36+00:00,10.1002/anie.9106635,Ming‐Sheng Wang,"ABSTRACT
+                  
+                    Anode‐free sodium metal batteries (AFSMBs) promise high energy density and simplified fabrication, yet require repeated sodium nucleation on the current collector surface after the complete stripping in each cycle. Here, we present a strategy utilizing sodiophilic hosts with pseudocapacitive kinetics to realize durable and efficient nucleation processes in AFSMBs, together with a scalable synthesis route for these hosts. To illustrate, a highly sodiophilic host was constructed by integrating pseudocapacitive T‐Nb
+                    2
+                    O
+                    5
+                    into amorphous carbon nanotubes (aCNTs) through in situ self‐assembly. Experimental and theoretical results reveal that T‐Nb
+                    2
+                    O
+                    5
+                    domains can simultaneously preserve their structural integrity, minimize Na consumption, accelerate Na transport, and ensure reversible redox reactions, thereby establishing robust nucleation sites. Consequently, the T‐Nb
+                    2
+                    O
+                    5
+                    @aCNTs host achieves highly reversible and uniform Na deposition, delivering an ultrahigh average Coulombic efficiency of 99.98% over 800 cycles in half‐cells and long cycling over 900 h in symmetric cells under harsh conditions. When paired with a high‐mass‐loading Na
+                    3
+                    V
+                    2
+                    (PO
+                    4
+                    )
+                    3
+                    cathode (15 or 30 mg cm
+                    −2
+                    ), the full cells exhibit high energy density and stable cycling performance. Moreover, the anode‐free pouch cell maintains favorable capacity retention over 100 cycles at 2 C. The proposed host design concept with scalable manufacturing capability opens a universal pathway toward practical high‐performance AFSMBs.",crossref,0
+Triple Active Sites in Prussian Blue Analogues for High‐Capacity Aqueous and Seawater Ammonium Ion Batteries,https://advanced.onlinelibrary.wiley.com/doi/10.1002/aenm.70988?af=R,Wiley: Advanced Energy Materials: Table of Contents,2026-04-25 06:05:46 UTC,2026-04-25 06:05:46+00:00,10.1002/aenm.70988,Wei Wen,"ABSTRACT
+                  
+                    Aqueous ammonium‐ion battery has recently gained attention as a safe, high‐power, and cost‐effective energy storage device; yet the development in cathode materials that can simultaneously deliver high capacity, high potential, and stable cycling performance is limited. Herein, a Prussian blue analog with three redox‐active sites (Co, Mn, and Fe) as a high‐performance cathode material for aqueous ammonium‐ion batteries by a dual function doping strategy is reported. It achieves a high reversible capacity of 153 mAh g
+                    −1
+                    and superior cycling stability over 2500 cycles with negligible capacity decay. Density functional theory calculations and electrochemical analysis reveal that Mn activates the redox activity of Co via the enhanced electron depletion, while Co effectively suppresses the Jahn–Teller effect through splitting the degenerate orbitals of Mn, preserving the long‐range structural integrity of the framework. Paring this cathode with the VO
+                    
+                      x
+                    
+                    @polypyrrole anode, a high specific energy of 145.7 Wh kg
+                    −1
+                    can be achieved at a high specific power of 810.9 W kg
+                    −1
+                    . This work offers a viable design strategy for the optimization of electrode materials through unlocking multiple active sites and stabilizing lattice frameworks.",crossref,0
+Self‐Heating and Thermal Gradient in Solid‐State Batteries: Friend or Foe?,https://advanced.onlinelibrary.wiley.com/doi/10.1002/aenm.70978?af=R,Wiley: Advanced Energy Materials: Table of Contents,2026-04-25 06:06:53 UTC,2026-04-25 06:06:53+00:00,10.1002/aenm.70978,Partha P. Mukherjee,"ABSTRACT
+                  Solid‐state batteries (SSBs) are poised to tackle the growing demands of electrified mobility due to their superior energy and power density with enhanced safety. Realizing their potential necessitates overcoming fundamental mechanistic challenges, including solid–solid point contacts, chemo–mechanical interactions, and interfacial instability. Here, we uncover the underpinning origins of dynamic thermo‐electrochemical gradients and intrinsic heat generation during operation. By harnessing their self‐heating signature under thermally modulated environments, we delineate design spaces that integrate materials, electrode configurations, and operational regimes, enabling performance improvements through enhanced thermal responsiveness. The directionality of thermal gradients is critically informed by the cathode architecture and correlates to the resulting temperature profiles, gradients, and interface stability. Further, we present a compelling case for transitioning to anode‐free SSBs that yield greater thermal utilization and performance benefits from self‐heating. Our novel Generate‐Retain‐Intensify‐Direct (GRID) workflow based on a mechanism‐centric SSB design, highlights its intrinsic thermal signature as a key lever for high‐power applications.",crossref,0
+A Nano‐Interception Strategy for Chronic Heart Failure: Prussian Blue Nanoparticles Disrupt Fibroblast‐Immune Communication via CCL2 Sequestration,https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.202520209?af=R,Wiley: Advanced Materials: Table of Contents,2026-04-25 06:31:53 UTC,2026-04-25 06:31:53+00:00,10.1002/adma.202520209,Xiaomin He,"ABSTRACT
+                  
+                    Chronic heart failure (HF) remains a global health challenge due to the lack of therapies that effectively disrupt the pathological fibro‐inflammatory networks driving disease progression. While current nanomedicine strategies often target intracellular pathways in isolated cell types, they overlook the multicellular crosstalk central to HF. Here, we develop scalably synthesized Prussian blue (PB) nanoparticles that selectively intercept the CCL2‐CCR2 chemokine axis, a key pathway in fibroblast‐macrophage communication. Single‐nucleus RNA sequencing of murine and human failing hearts identifies a conserved pro‐fibroinflammatory cardiac fibroblast subpopulation (POSTN
+                    hi
+                    CCL2
+                    hi
+                    ) that recruits CCR2
+                    +
+                    macrophages via CCL2 secretion. PB nanoparticles exhibit ultrahigh affinity (K
+                    D
+                    = 1.11 × 10
+                    −10
+                     
+                    m
+                    ) for free CCL2, inducing conformational distortion in its N‐terminal domain via specific C≡N interface interactions with CRS1 residues, thereby blocking CCR2 engagement, a mechanism distinct from conventional nanomaterials. Although ineffective in monocultures, PB nanoparticles robustly improve cardiac function and remodeling in murine and translational porcine pressure‐overload HF models, reducing left ventricular end‐diastolic volume by 56.2% and fibrosis by 40.5%, while selectively depleting CCR2
+                    +
+                    macrophages without systemic immunosuppression. Supported by scalable production (&gt; 100 g/batch), long‐term stability, and biosafety, this work establishes a cell communication‐targeting nanomedicine strategy for network‐driven diseases like HF.",crossref,0
+"Superior Intermetallic Pt‐Co/C Catalysts With Optimized Triply Metal‐Loading, Size, and Ordering‐Degree for High‐Efficiency and Stable H2–Air Fuel Cells",https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.202523080?af=R,Wiley: Advanced Materials: Table of Contents,2026-04-25 06:35:27 UTC,2026-04-25 06:35:27+00:00,10.1002/adma.202523080,Long Kuai,"ABSTRACT
+                  
+                    Pt‐based intermetallic compounds (IMCs) are promising electrocatalysts for oxygen reduction reaction (ORR). This work presents small‐sized (2–4 nm) Pt‐Co IMCs with both high Pt loading (40–60 wt.%) and ordering degree (42%–91%) via an optimized L‐cysteine hydrochloride‐assisted impregnation. Besides heating rate and calcination temperature, metal loading is identified as a critical factor governing IMCs formation. Quantitative XRD analysis reveals that the IMCs fraction reaches 78.8% (29.4% L1
+                    0
+                    ‐PtCo‐IMC + 50.4% L1
+                    2
+                    ‐Pt
+                    3
+                    Co‐IMC) at 40% loading, peaks at 94.5% (68.4% L1
+                    0
+                    ‐PtCo‐IMC + 26.1% L1
+                    2
+                    ‐Pt
+                    3
+                    Co‐IMC) at 50% loading, and declines to 31.6% (solely L1
+                    0
+                    ‐PtCo‐IMC) at 60% loading. The 50% Pt‐Co‐IMCs/C with the highest L1
+                    0
+                    ‐PtCo content delivers the best ORR performance, achieving a mass activity of 0.80 A mg
+                    Pt
+                    −1
+                    —1.7 times that of commercial PtCo‐TKK. In membrane electrode assembly tests under H
+                    2
+                    ‐air with a low Pt usage of 0.16 mg cm
+                    −
+                    2
+                    , a voltage of 0.603 V is achieved at 2.0 A cm
+                    −
+                    2
+                    , with only 11.4% voltage decay after 30 000 cycles. Density functional theory calculations corroborate the activity trend of L1
+                    0
+                    ‐PtCo &gt;L1
+                    2
+                    ‐Pt
+                    3
+                    Co &gt;disordered PtCo, thereby rationalizing the loading‐dependent ORR activity. The synergistic effect between optimized
+                    *
+                    OH desorption kinetics in the rate‐determining step and strong Pt‐Co
+                    d
+                    ‐
+                    d
+                    orbital coupling jointly enhances the activity and stability.",crossref,0
+Enantioselective Synthesis of Inherently Chiral Tetraphenylene Analogues Enabled by NHC‐Catalyzed Benzoin Condensation,https://onlinelibrary.wiley.com/doi/10.1002/anie.6712761?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:07:17 UTC,2026-04-25 11:07:17+00:00,10.1002/anie.6712761,Qiang Zhu,"ABSTRACT
+                  Herein, we report an enantioselective N‐heterocyclic carbene (NHC)‐catalyzed intramolecular benzoin reaction of bisaldehydes featuring a 1,1′:2′,1′′‐terphenyl linkage to afford eight‐membered α‐hydroxy ketones in which six of the eight ring atoms are benzene carbons. The benzene‐rich framework is conformationally inflexible and thus inherently chiral, adopting a saddle‐shaped conformation. A variety of heteroaromatic‐ and naphthalene‐embedded tetraphenylene analogues were prepared enantioselectively by routine transformations of the α‐hydroxy ketone moiety. Density functional theory (DFT) calculations elucidate the reaction mechanism and provide insights into the origin of the stereoselectivity.",crossref,0
+"The Power of Pnictogen Bond: As─As Linkages Drive Wide Bandgap, Strong NLO Response and Large Birefringence in SrGa3Si4As11",https://onlinelibrary.wiley.com/doi/10.1002/anie.8887289?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:07:49 UTC,2026-04-25 11:07:49+00:00,10.1002/anie.8887289,Junjie Li,"ABSTRACT
+                  
+                    Arsenides represent an advantageous platform for designing long‐wavelength infrared (IR) nonlinear optical (NLO) materials; however, the intrinsic narrow bandgaps hinder their applications. In this work, by introducing As–As homoatomic bonds to eliminate the nonbonding electron pairs on As atoms, the first experimentally verified quaternary arsenide NLO material SrGa
+                    3
+                    Si
+                    4
+                    As
+                    11
+                    was rationally designed within the As‐rich A
+                    II
+                    –B
+                    III
+                    –C
+                    IV
+                    –As system, and synthesized experimentally. The compound crystallizes in the uniaxial hexagonal system (
+                    P
+                    6
+                    3
+                    space group, No. 173) and is composed of [SrAs
+                    9
+                    ] polyhedra, [GaAs
+                    4
+                    ] and [SiAs
+                    4
+                    ] tetrahedra with unique As–As homoatomic bonding. The introduction of As─As bonds simultaneously enhances the NLO response, bandgap, and birefringence, demonstrating a strong phase‐matching second‐order NLO response (∼8.0 × AgGaS
+                    2
+                    ), a wide arsenide bandgap (∼1.59 eV), a high laser‐induced damage threshold (∼1.5 × ZnGeP
+                    2
+                    and ∼4.0 × AgGaS
+                    2
+                    ) and a large birefringence (Δ
+                    n
+                    = 0.10@2090 nm) in the compound. Both experimental and theoretical results confirm the positive contributions of As─As bonds to these superior properties. The results enrich the structural diversity of arsenides, and establish As‐rich arsenides incorporating homoatomic bonds as an emerging system for high‐performance IR NLO materials, with SrGa
+                    3
+                    Si
+                    4
+                    As
+                    11
+                    serving as a promising candidate.",crossref,0
+Enhanced Internal Magnetic Field for Long‐Cycle NCM‐Li All‐Solid‐State Batteries via Dual‐Inhibition of Anode Dendrite and Cathode Cation Disorder,https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.73186?af=R,Wiley: Advanced Materials: Table of Contents,2026-04-25 11:08:25 UTC,2026-04-25 11:08:25+00:00,10.1002/adma.73186,Wensheng Yang,"ABSTRACT
+                  
+                    Solid‐state batteries, which incorporate a Li metal anode and a high‐voltage Ni‐rich layered oxide (LiNi
+                    x
+                    Co
+                    y
+                    Mn
+                    1–x–y
+                    O
+                    2
+                    ,
+                    x
+                    ≥ 0.8) (NCM) cathode, offer the promise of high energy density for next‐generation batteries. Although solid‐state electrolytes are anticipated to enhance safety and performance over conventional liquid‐state electrolytes, they still fail to prevent non‐uniform lithium deposition on the anode surface. Moreover, while solid‐state electrolytes can partially suppress parasitic reactions at the cathode‐electrolyte interface, mitigating structural degradation caused by Li/Ni antisite disorder remains challenging. Herein, we demonstrate a two‐orders‐of‐magnitude enhancement in the internal magnetic field during battery cycling by incorporating Fe
+                    3
+                    O
+                    4
+                    nanorods within the solid electrolyte. The strengthened magnetic field alters the deposition behavior of lithium ions on the anode via the magnetohydrodynamic effect and, concurrently, suppresses the structural degradation of the cathode by regulating the spin state of Ni
+                    3
+                    +
+                    . The enhanced internal magnetic field applies throughout the entire life of the NCM||Li all‐solid‐state battery, improving its cycling stability. Unlike external magnetic fields, this internal approach requires no complex equipment and avoids integration challenges.",crossref,0
+A Cu–La Dual‐Atomic Catalyst With Dual‐Site Adsorption Enables Synergistic Optimization of Thermodynamics and Kinetics of Electrocatalytic CO2 Reduction,https://onlinelibrary.wiley.com/doi/10.1002/anie.202521626?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:09:45 UTC,2026-04-25 11:09:45+00:00,10.1002/anie.202521626,Lang Xu,"ABSTRACT
+                  
+                    Single‐atomic catalysts face the following major challenges in the rapidly advancing field of electrocatalytic CO
+                    2
+                    reduction (ECR) to CO: linear scaling relationships between adsorption strengths of intermediates lead to unfavored ECR thermodynamics; low CO
+                    2
+                    /proton/electron concentrations within microenvironments on catalyst surfaces limit ECR kinetics. Consequently, we synthesized a Cu–La dual‐atomic catalyst (DAC) for synergistically optimizing the ECR thermodynamics and kinetics. The Cu and La sites of Cu–La DAC can respectively couple the C and O atoms of *COOH, forming a novel dual‐site *COOH adsorption configuration, which does not undergo a transition to subsequent *CO. Cu–La DAC can effectively break the linear scaling relationship and optimize the ECR thermodynamics. Furthermore, Cu and La, possessing distinct conductivity, hydrophilicity, and CO
+                    2
+                    adsorption capabilities, collectively modulate the microenvironments on the surface of Cu–La DAC. This facilitates the efficient supply of electrons, protons, and CO
+                    2
+                    for ECR, thereby greatly enhancing the kinetics. This work combines Cu and La, which have different macroscopic properties and electronic structures (microscopic), to synergistically optimize thermodynamics and kinetics based on the dual‐site adsorption of DAC, providing new insights for designing high‐performance catalysts and discovering efficient mechanisms.",crossref,0
+Anthraquinone‐Based Electron Reservoir‐Pump Photosensitizer Generating Radical Ion Pairs for Metabolism‐Targeted Photodynamic Therapy,https://onlinelibrary.wiley.com/doi/10.1002/anie.9985126?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:10:28 UTC,2026-04-25 11:10:28+00:00,10.1002/anie.9985126,Xiaochen Dong,"ABSTRACT
+                  
+                    Type I photodynamic therapy (PDT) overcomes oxygen (O
+                    2
+                    ) dependence of type II PDT, but developing hypoxia‐efficient electron‐transfer photosensitizers remains challenging. Herein, we proposed an anthraquinone (AQ)‐based single‐component “electron reservoir‐pump” strategy to enhance the electron transfer ability of type I photosensitizers. In this molecular design, the AQ scaffold functioned as an intrinsic electron reservoir, while the electron‐rich tetraphenylethylene (TPE) served as an electron pump that actively donated electrons. The synergistic reservoir‐pump interaction enabled the photosensitizer AQTPE to undergo photo‐disproportionation and generate radical ion pairs: the anionic radical efficiently reduced O
+                    2
+                    to form superoxide (O
+                    2
+                    −•
+                    ), while the cationic radical oxidized key metabolic cofactor flavin adenine dinucleotide (FADH
+                    2
+                    ) to disrupt redox homeostasis and suppress fatty acid synthase (FASN)‐mediated metabolism. In contrast, control photosensitizers AQCN and AQNI bearing electron‐withdrawing substituents maintained singlet oxygen (
+                    1
+                    O
+                    2
+                    ) generation. Theoretical calculations revealed that AQTPE possessed a markedly reduced singlet‐triplet energy gap (Δ
+                    E
+                    ST
+                    = 0.01 eV) and enhanced spin‐orbit coupling (7.538 cm
+                    −1
+                    ), facilitating intersystem crossing. Notably, AQTPE nanoparticles exhibited potent type I photodynamic activity and robust tumor suppression even under hypoxic conditions. This study establishes a molecular electronegativity‐modulation framework for integrating electron reservoir‐pump systems within single‐component photosensitizers, offering a general design principle for next‐generation metabolism‐targeted and hypoxia‐tolerant photosensitizers.",crossref,0
+Highly Efficient Mechanochromic Thermally Activated Delayed Fluorescence in the Deep Red to Near‐Infrared in Copper(I) [2.2]Isoindolinophanyl‐Carbene Carbazolates,https://onlinelibrary.wiley.com/doi/10.1002/anie.5338298?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:11:02 UTC,2026-04-25 11:11:02+00:00,10.1002/anie.5338298,Andreas Steffen,"ABSTRACT
+                  
+                    Low energy triplet emitters are highly relevant for the development of OLEDs and fiber optics‐based IT applications, but typically suffer from nonradiative decay due to the energy gap law (EGL). Excited state deactivation can be limited by enhancing the radiative decay rate via thermally activated delayed fluorescence (TADF), bypassing spin‐forbidden phosphorescence. We report on linear copper(I) complexes bearing a recently reported [2.2]isoindolinophanyl‐carbene (iPC) ligand as potent excited state π‐acceptor. The compounds show efficient TADF from ligand‐to‐ligand charge transfer (
+                    1/3
+                    LLCT) states with reverse intersystem‐crossing (RISC) of
+                    k
+                    RISC
+                    = 0.6–21·10
+                    9
+                    s
+                    −1
+                    , quantum yields of up to 0.8 and
+                    k
+                    TADF
+                    of 0.8‐1.9·10
+                    6
+                    s
+                    −1
+                    that are among the fastest for Cu
+                    I
+                    emitters, outcompeting traditional triplet emitters based on Ir
+                    III
+                    and Pt
+                    II
+                    as well as organic deep red to near‐IR TADF emitters. While yellow to red emission is observed in single crystals, embedding the complexes into polymers or grinding shifts the luminescence into the deep red to near‐IR. The mechanochromism is due to disruption of C─H⋯π interactions between the ligands, reducing the energy gap between the ground state and
+                    1/3
+                    LLCT states. The Cu
+                    I
+                    iPC complexes bear potential for devices operating under electroluminescent conditions as demonstrated by a proof‐of‐concept deep‐red OLED application.",crossref,0
+Bioinspired Starch‐Polyiodide Electrolytes for Self‐Healing Lithium‐Metal Interfaces and Stable Photoelectrochemical Energy Storage,https://onlinelibrary.wiley.com/doi/10.1002/anie.7391407?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:12:01 UTC,2026-04-25 11:12:01+00:00,10.1002/anie.7391407,Li‐Feng Chen,"ABSTRACT
+                  The development of high‐energy‐density power sources with integrated energy harvesting capabilities is crucial for advancing wearable electronics. Herein, inspired by the homeostatic ion regulation mechanisms of plant roots in dynamic chemical environments, we developed a biomimetic starch‐polyiodide solid polymer electrolyte for constructing an integrated photo‐rechargeable energy storage system. The incorporation of functionalized starch‐polyiodides reconfigures the PVDF matrix topology, modulates the all‐trans (TTTT) conformation and anchors anions, thereby optimizing lithium‐ion transport and enhancing ionic conductivity, while enabling interfacial dead‐lithium self‐healing at the anode and defect passivation of the photoelectrochemical storage cathode (PSC). In situ characterization and theoretical calculations revealed that the additive facilitated multi‐electron transfer and formed a functional buffer layer, which synergistically stabilized the lithium metal anode interface while suppressing ion migration at the PSC. This mechanism established a robust solid electrolyte interphase and improved the overall energy storage efficiency of the integrated device. The resulting flexible integrated device demonstrated outstanding performance, retaining 85% capacity and 95.2% energy efficiency after 450 cycles at 1 C while preserving superior mechanical flexibility and efficient photo‐electric conversion. This work provides a novel strategy for developing flexible energy storage systems that integrate high ionic conductivity, interfacial stability, and photo‐electrochemical synergy.",crossref,0
+Light‐Induced Dispersion of Pd Single Atoms Provides Steady‐State‐Stabilized Activity for Photocatalytic H2 Generation,https://onlinelibrary.wiley.com/doi/10.1002/anie.9243644?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:12:45 UTC,2026-04-25 11:12:45+00:00,10.1002/anie.9243644,Patrik Schmuki,"ABSTRACT
+                  
+                    In recent years, the use of single atoms (SAs) has become increasingly significant in photocatalysis. Particularly, SA noble metals of Pt and Pd can act as highly effective co‐catalysts for the hydrogen production reaction. The main challenge in the use of SA catalysts is agglomeration, and most importantly, for photocatalysts, light‐induced agglomeration that rapidly degrades the catalytic performance. Here, we show, however, that for Pd SAs on an ideal flat TiO
+                    2
+                    thin‐film platform, under a constant, sufficiently high photon flux, a highly dispersed and highly active SA configuration can be maintained, i.e., agglomeration to nanoparticles and activity loss can be prevented. We ascribe this, supported by DFT, to the destabilizing effect of a high hydrogen loading on Pd 2D rafts consisting of few atoms and the high mobility of the Pd‐H intermediates. This, in contrast to Pt, provides an energetics that allows to maintain a dispersion‐aggregation equilibrium, which results in a steady‐state that macroscopically can provide a remarkably high SA‐stability during photocatalytic experiments, maintaining the photocatalyst in a state of highest activity.",crossref,0
+Monoselective Mechanochemical Aromatic Nucleophilic Substitution Enabled by Crystal‐Engineering‐Guided Reaction Design,https://onlinelibrary.wiley.com/doi/10.1002/anie.2656827?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:13:43 UTC,2026-04-25 11:13:43+00:00,10.1002/anie.2656827,Hajime Ito,"ABSTRACT
+                  
+                    Mechanochemical solid‐state organic transformations using ball milling not only represent a sustainable and efficient synthetic approach but also exhibit reactivity patterns that are remarkably different from conventional solution‐phase reactions. However, the rational design of site‐ and chemoselective synthetic strategies that harness the distinct behavior of solid‐state molecules remains largely unexplored. Here, we present a new reaction based on an organic crystal‐engineering approach to achieve monoselective nucleophilic aromatic substitution (S
+                    N
+                    Ar) reactions. The mechanochemical solid‐state S
+                    N
+                    Ar reactions of perfluoroarene derivatives with carbazoles as nucleophiles selectively afforded the monosubstituted products. In contrast, the corresponding solution‐based reactions yielded a mixture of mono‐ and disubstituted products. Single‐crystal X‐ray diffraction analysis of the monosubstituted products revealed strong π–π interactions between the electron‐deficient perfluoroarene moiety and the electron‐rich carbazole unit. These arene–perfluoarene interactions lead to the formation of crystalline solids that are less reactive than the starting materials, thereby suppressing the second substitution and ensuring pronounced monoselectivity. The present study represents a novel approach that leverages a crystal‐engineering principle to design selective solid‐state organic transformations that are difficult to achieve via conventional solution‐based synthesis.",crossref,0
+Twisted Nanoribbon‐Like Electron Acceptor With Suppressed Non‐Radiative Loss and Seed‐Assisted Crystallization for High‐Efficiency Organic Solar Cells,https://onlinelibrary.wiley.com/doi/10.1002/anie.9572636?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-04-25 11:21:24 UTC,2026-04-25 11:21:24+00:00,10.1002/anie.9572636,Weiwei Li,"ABSTRACT
+                  
+                    While large π‐conjugated nanoribbons possess highly tunable electronic properties, their potential in high‐performance organic photovoltaics (OPVs) remains largely untapped. Herein, we report a π‐extended nanoribbon‐like electron acceptor, PDIY, featuring a molecular length of 4.85 nm (11 fused rings) and near‐infrared absorption extending to 900 nm. PDIY is engineered with a perylene diimide core fused to dual rylene units and end‐capped with Y‐type acceptor moieties. The rigid conjugated framework effectively suppresses conformational/vibronic relaxation, weakens electron‐phonon coupling, and yields an intrinsically low non‐radiative voltage loss (Δ
+                    V
+                    nr
+                    ) of 0.146 eV, among the lowest values reported to date, thereby enabling higher open‐circuit voltage. Despite its large size, the twisted geometry of PDIY leads to a unique “low crystallinity, strong aggregation” behavior. This allows PDIY to serve as a potent morphology‐directing additive that acts in a manner consistent with heterogeneous nucleation, inducing the formation of robust, large‐diameter fibrillar networks within bulk‐heterojunction blends. Consequently, the integration of PDIY yields a simultaneous enhancement across all photovoltaic parameters, boosting power conversion efficiencies (PCEs) from 19.62% to 20.57%. This work establishes twisted nanoribbon‐like acceptor as a versatile molecular platform for the dual regulation of excited‐state dynamics and active‐layer morphology in next‐generation OSCs.",crossref,0
+[ASAP] Design of a High-Performance Infrared Nonlinear Optical Crystal via a Multiple Flexible-Group Synergistic Polarization Strategy,http://dx.doi.org/10.1021/jacs.6c04439,Journal of the American Chemical Society: Latest Articles (ACS Publications),2026-04-25 13:19:01 UTC,2026-04-25 13:19:01+00:00,10.1021/jacs.6c04439,Jindong Chen,"The development of high-performance infrared (IR) nonlinear optical (NLO) crystals is fundamentally challenged by the conflicting requirements for a large NLO coefficient, a high laser damage threshold (LDT), and a broad IR transparency range. We establish a structure–property relationship governing nonlinear optical response in diamond-like compounds, namely, a sixth-power scaling relation between the NLO coefficient dijk and average flexibility index F, i.e., dijk ∝ F6. Based on this relation, a multiple flexible-group synergistic polarization strategy is proposed, which successfully guided the discovery of an exceptional IR NLO crystal, Cd2In3Si2P7 (CISP). CISP exhibits the largest recorded SHG effect (8.8 × AgGaS2 (AGS) and 2.5 × ZnGeP2 (ZGP) @ 2050 nm) among reported pnictide NLO crystals, high NLO coefficients (d22 and d23 = 137.6 and 89.3 pm/V @ 1500 nm, respectively), a high LDT (10.3 × AGS), a moderate birefringence (0.098 @ 2050 nm), and a broad IR transmission range (0.62–18.0 μm). The outstanding comprehensive performances underscore its significant potential as a promising IR NLO material. This work not only provides a strategy for the design of IR NLO crystals but also introduces a straightforward yet powerful descriptor for understanding the structure–property correlation in polarizable functional materials.",openalex,0
+Entire NSF science advisory board fired by Trump administration,https://www.nature.com/articles/d41586-026-01361-7,Nature,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,10.1038/d41586-026-01361-7,Dan Garisto,,,0
+"Geopolitical conflict, military capability, and energy market stability: Evidence from the Israel–Hamas conflict",https://www.sciencedirect.com/science/article/pii/S0301421526002673?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Nuri Hacıevliyagil,,,0
+Carrot and stick: A comparative analysis of instruments for accelerating the hydrogen and power-to-X economy,https://www.sciencedirect.com/science/article/pii/S0301421526002302?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Michael Sterner,,,0
+Techno-economic and social assessment of an energy community for low-income households: An evidence of Seville,https://www.sciencedirect.com/science/article/pii/S0306261926005519?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Alejandro Marano-Marcolini,,,0
+"Quantum-inspired multi-modal multi-objective optimization for integrated electric and hydrogen mobility in renewable energy systems: Case study in Islamabad, Pakistan",https://www.sciencedirect.com/science/article/pii/S0306261926005520?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Yiping Liu,,,0
+Bridging economics and physics in energy systems analysis: Effects of flexibility representation on model outcomes,https://www.sciencedirect.com/science/article/pii/S0306261926004666?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Dominik Möst,,,0
+BESS degradation effects over operational and investment decisions in power system expansion planning,https://www.sciencedirect.com/science/article/pii/S0306261926005994?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Enzo Sauma,,,0
+HyDRA: A large-scale test bench for magnetic hydrogen liquefaction,https://www.sciencedirect.com/science/article/pii/S0306261926005854?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Tino Gottschall,,,0
+Integrated planning framework for E-BRT charging infrastructure: Case study of bogotá,https://www.sciencedirect.com/science/article/pii/S0306261926005842?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Mauricio Sánchez-Silva,,,0
+Standardized framework for techno-economic assessment of heavy-duty vehicles: Insights from a state-of-the-art review,https://www.sciencedirect.com/science/article/pii/S0306261926005350?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Ezio Spessa,,,0
+Recent advances in wind turbine technologies: a review of innovations and challenges in the last years (2015–2025),https://www.sciencedirect.com/science/article/pii/S0306261926005283?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Ümit Ağbulut,,,0
+The economic feasibility and farmers’ adoption of battery electric tractors: a systematic literature review,https://www.sciencedirect.com/science/article/pii/S0306261926005659?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Petyo Bonev,,,0
+Day-ahead optimal scheduling for cascade hydropower units to mitigate vibration zone crossing induced by intra-day flexibility response,https://www.sciencedirect.com/science/article/pii/S0306261926005982?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Zhongkai Feng,,,0
+Multi-functional low voltage ride-through control strategies for grid-interfaced solar power plants: A comprehensive review,https://www.sciencedirect.com/science/article/pii/S0306261926005374?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-04-26 00:00:00 UTC,2026-04-26 00:00:00+00:00,,Dinesh Kumar Tiwari,,,0
+"[ASAP] Photofracking-Assisted Enhancement of Solid-State Photochemical Reactivity: α-Azido-5-phenyl-2,4-dienoate Derivatives",http://dx.doi.org/10.1021/jacs.5c22335,Journal of the American Chemical Society: Latest Articles (ACS Publications),2026-04-26 12:50:27 UTC,2026-04-26 12:50:27+00:00,10.1021/jacs.5c22335,Anna D. Gudmundsdottir,"Solid-state photoreactions are unmatched by their liquid or gaseous counterparts for being spatially and temporally controllable and selective; however, these assets usually come with compromised yields-localized surface reactions are favored that generate a passivating layer of photoproducts and shield the crystal interior from reacting. Here, we demonstrate that this inherent limitation could be circumvented by capitalizing on the disintegrative effects of photodynamic crystals, such as cracking and fracturing, which can expose freshly cleaved surfaces and effectively increase the overall conversion. Upon irradiation with natural or artificial visible light, crystals of two 2-azido-5-phenyl-2,4-dienoate derivatives (1a and 1b) are converted into the corresponding 5-phenyl-1H-pyrrole-2-carboxylate derivatives (2a and 2b). Crystals were observed to crack and fracture throughout the reaction due to the release of dinitrogen, and the cracking occurs preferentially along planes defined by the weakest intermolecular interactions. Laser-flash photolysis in conjunction with density functional theory calculations confirmed that in both solution and in the solid, the triplet excited states of 1a and 1b rearrange to biradicals 3Br1a and 3Br1b, which then release dinitrogen to afford biradicals 3Br2a and 3Br2b; however, in the solid state, the crystal lattice rigidity extends the triplet lifetimes of both 1 and 3Br1. This work highlights the benefits of the ""photofracking"" that stands for photoinduced crystal disintegration, as a convenient strategy that naturally increases the efficiency of the solid-state reactions without external intervention.",pubmed,0
