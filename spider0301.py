@@ -101,7 +101,7 @@ TITLE_EXCLUDE_KEYWORDS = ["editorial", "masthead", "issue information", "cover"]
 
 # OUP(NSR) RSS description 抽摘要
 OUP_ABS_RE = re.compile(
-    r'boxTitle"\s*>\s*Abstract\s*<\s*/\s*div\s*>\s*(.*?)\s*(?:</span>|</description>|$)',
+    r'boxTitle"\s*>\s*Abstract\s*<\s*/\s*div\s*>\s*(.*?)\s*(?:</span>\s*</description>|$)',
     flags=re.IGNORECASE | re.DOTALL
 )
 
