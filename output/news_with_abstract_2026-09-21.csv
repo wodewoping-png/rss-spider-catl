@@ -1,0 +1,308 @@
+﻿title,link,source,published_str,pub_date,doi,last_author,abstract,abstract_source,must_have_abstract
+Checkerboard-type Zhang-Rice states in overdoped cuprate superconductors,https://www.nature.com/articles/s41467-026-77985-0,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77985-0,Xinmao Yin,"Cuprate superconductors remain central to condensed matter physics due to their technological relevance and unconventional, incompletely understood electronic behavior. While the canonical phase diagram and low-energy models have been shaped largely by studies of underdoped and moderately doped cuprates, the overdoped regime has received comparatively limited attention. Here, we track the evolution of the electronic structure from optimal to heavy overdoping in La2−xSrxCuO4 (LSCO) using broadband optical spectroscopy across x = 0.15–0.60. The measured spectral changes—including the redistribution of Zhang–Rice–related spectral weight—are in qualitative agreement with determinant quantum Monte Carlo (DQMC) simulations of the three-orbital Emery model, which together indicate a pronounced reconstruction of the electronic structure beyond hole concentrations x > 0.2. Guided by these observations, we propose a spontaneous checkerboard-type Zhang–Rice electronic configuration that accounts for the coexistence of itinerant and localized carriers characteristic of the heavily overdoped state. Our results refine the doping-dependent Zhang–Rice–based framework for cuprates, illuminate how correlations persist deep into the overdoped regime, and provide new constraints on microscopic mechanisms of high-temperature superconductivity, with broader implications for correlated transition-metal oxides.",nature_html,0
+Anti-thymocyte globulin triggers TNF-dependent cell death in T-cell acute lymphoblastic leukemia,https://www.nature.com/articles/s41467-026-77027-9,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77027-9,Vahid Asnafi,"T-cell acute lymphoblastic leukemia (T-ALL) accounts for one of the most aggressive hematological tumors associated with poor prognosis, notably for relapsed and refractory patients. Hence, an unmet medical need persists for T-ALL patients who fail to durably respond to conventional treatments. Herein, we report the antileukemic efficacy of anti-thymocyte globulin (ATG), a polyclonal cocktail of IgG enriched in antibodies directed against human thymocyte antigens. The treatment of preclinical models of T-ALL reveals a cytotoxic mechanism of ATG mediated by TNFα signaling. We demonstrate that ATG resistance may occur via the induction of negative regulators of TNFα-induced cell death and can be circumvented by SMAC mimetic birinapant ex vivo and in vivo. These results are validated in a series of prospective primary relapsed/refractory T-ALL samples. Here, we provide a strong rationale for clinically relevant ATG-based immunotherapy in combination with birinapant to treat T-ALL patients.",nature_html,0
+Virtual sensing to enable real-time monitoring of inaccessible locations & unmeasurable parameters,https://www.nature.com/articles/s41467-026-77463-7,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77463-7,Syed Bahauddin Alam,"Real-time monitoring of safety-critical interior states remains an open problem across energy, environmental, and industrial systems where direct instrumentation is infeasible. Existing approaches based on governing equations, discrete state vectors, or fixed sensor locations fail to provide mesh-independent, field-level reconstructions at arbitrary interior coordinates under real-time constraints. Here we introduce neural operator-based virtual sensing as a general framework for recovering inaccessible interior fields from sparse, heterogeneous measurements and operating conditions, instantiated with MIMONet, a multi-input, multi-output neural operator that fuses heterogeneous inputs and decodes coupled physical fields through a shared latent representation. Across three engineering-grade evaluations of escalating complexity, from confined recirculating flows to pressurized water reactor subchannels and compact power-system heat exchangers, MIMONet achieves ≤5% relative reconstruction error, while generating full-field predictions with sub-millisecond inference on an NVIDIA H200, at least five orders of magnitude faster than traditional high-fidelity CFD simulations, with calibrated uncertainty and noise resilience demonstrated on the heat-exchanger case. We validate the framework on three independent real-world datasets spanning electrochemical energy, atmospheric science, and physical oceanography: current-density mapping in a hydrogen fuel cell, wind-speed profiling on instrumented meteorological towers, and North Atlantic ocean-state from a global ocean reanalysis. MIMONet improves over classical virtual-sensing baselines by 72–84%: 84% on fuel-cell internal-field recovery from 10% sensor coverage and 83% on hub-height wind-speed recovery from lower-level tower sensors. Most notably, it recovers sea-surface height, a field with zero direct sensors, from its learned coupling to observed temperature and salinity at 4.1 × lower error than the best classical predictor, a cross-modal field recovery beyond the reach of classical interpolation. These results establish operator-based virtual sensing as a practical route to real-time field observability in systems where the states that matter most cannot be directly measured.",nature_html,0
+Single-fiber hyperspectral imaging via nanophotonic disordered dispersion,https://www.nature.com/articles/s41467-026-77550-9,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77550-9,Guangwei Hu,"Optical fibers are widely used to transmit optical signals for communications and sensing. Extending this capability to hyperspectral imaging is attractive for compact imaging systems, but is fundamentally constrained by limited channel capacity and transmission distortion of fibers. Here, we demonstrate single-fiber hyperspectral imaging via nanophotonic disordered dispersion. A disordered-dispersion encoder at the distal fiber end can map high-dimensional spectral-angular information into a one-dimensional spectral measurement, which is then computationally decoded using sparsity-constrained reconstruction. Our disordered dispersion is achieved using nonlocal nanophotonic structures that support high mode density and multimode coupling, thereby enabling low-correlation compressive encoding. The system features angular reconstruction over a field of view of ±60°, spectral detection from 400 to 700 nm, and robustness against fiber distortion. This work circumvents the need for real-space pixelated encoders or detectors used in traditional hyperspectral cameras, offering a route toward ultra-compact high-dimensional imagers compatible with flexible single-fiber probes.",nature_html,0
+Kirigami-actuated reconfigurable topological photonic crystals,https://www.nature.com/articles/s41467-026-77880-8,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77880-8,Jian-Wen Dong,"Photonic crystals are typically fabricated with a fixed topology, freezing their edge and corner states in space and frequency. Here we introduce a kirigami-actuated reconfigurable topological photonic crystal in which a single in-plane rotation reshapes the unit cell, drives a bandgap closure and reopening, and thereby relocates the Wannier center and switches the associated Zak phase—the topological invariant that determines whether boundary states appear. We engineer a symmetry-preserving square-lattice deformation path that programs the intracell rod configuration into a compact, discrete topological phase library. Using this library, we demonstrate reconfigurable control of topological modes in both resonance frequency and spatial localization from the same mechanical degree of freedom. A higher-order corner mode is switched between two distinct resonance frequencies while its localization moves between different geometric corners. Meanwhile, at a fixed operating frequency, the propagation path of reciprocal crystalline-symmetry-protected edge modes is mechanically rewritten, enabling on/off gating and two-path beam routing. These results establish a route toward reconfigurable topological photonic devices, showing that quantized band topology can be encoded and switched by shape.",nature_html,0
+Dosing and delivery of bacteriophage therapy in a murine wound infection model,https://www.nature.com/articles/s41467-026-77992-1,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77992-1,Paul L. Bollyky,"Lytic bacteriophages, viruses that lyse (kill) bacteria, hold great promise for treating infections, including wound infections caused by antimicrobial-resistant Pseudomonas aeruginosa. However, dosing and delivery strategies for phage therapy remain underdeveloped. In a mouse wound infection model specifically designed to evaluate the treatment of established infections—a critical gap in existing preclinical models—we investigated the impact of administration route, dose, and frequency on phage therapy efficacy. In this model, topical, but not systemic, delivery reduced wound bacterial burden. In vitro and in vivo data revealed rapid emergence of phage resistance and suggested potential benefit of using high and repeated doses. Building on these insights, we developed HydroPhage, a phage-containing hyaluronan-based hydrogel formed with dynamic covalent crosslinks that delivers high-titer phages over one week. Here, we show that sustained hydrogel-based delivery is a practical and effective approach for topical phage application.",nature_html,0
+Bayesian bilevel operator learning with low-rank adaptation for efficient uncertainty quantification of PDE inverse problems,https://www.nature.com/articles/s41467-026-77768-7,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77768-7,John S. Lowengrub,"Uncertainty quantification in PDE inverse problems is essential in many applications. Scientific machine learning and AI enable data-driven learning of model components while preserving physical structure, and provide the scalability and adaptability needed for emerging imaging technologies and clinical insights. We develop a Bilevel Local Operator Learning framework for Bayesian inference in PDEs (B-BiLO). At the upper level, we sample parameters from the posterior via Hamiltonian Monte Carlo, while at the lower level we fine-tune a neural network via low-rank adaptation (LoRA) to approximate the solution operator locally. B-BiLO enables efficient gradient-based sampling without synthetic data or adjoint equations and avoids sampling in high-dimensional weight space, as in Bayesian neural networks, by optimizing weights deterministically. We analyze errors from approximate lower-level optimization and establish their impact on posterior accuracy. Numerical experiments across PDE models, including tumor growth, demonstrate that B-BiLO achieves accurate and efficient uncertainty quantification.",nature_html,0
+Resonance-enhanced integrated acousto-optic beam steering,https://www.nature.com/articles/s41467-026-77864-8,Nature Communications,2026-09-19 00:00:00 UTC,2026-09-19 00:00:00+00:00,10.1038/s41467-026-77864-8,Mo Li,"Optical beam steering is a key technology for free-space optical communication, sensing, and imaging. Mechanical beam steering systems suffer from limited scanning speed and bulky form factors, while existing solid-state solutions rely on pixelated synthetic aperture that requires complex fabrication and control architectures. Integrated acousto-optic beam steering is an emerging technology that enables continuous one-dimensional beam steering using integrated acoustic transducers and fixed-wavelength laser sources. Here, we integrate this approach with an optical ring resonator on the same thin-film lithium niobate platform to significantly enhance beam steering efficiency and system functionality. The resulting device achieves a resonance-enhanced beam steering efficiency of up to 26% and a field of view of 18∘. Moreover, by leveraging integrated electro-optic control, we dynamically lock the ring-resonator’s resonance to a chirped laser frequency, enabling frequency-modulated continuous-wave light detection and ranging operation. By combining lithium niobate’s piezoelectric and electro-optic properties, this work establishes a compact, efficient, and scalable beam-steering platform with co-integrated acousto-optic modulation and electro-optic control for multifunctional applications.",nature_html,0
+Coordinating Mesopore Geometry and Interfacial Water Dynamics for Iron‐Site Evolution in Nitrate Electroreduction,https://onlinelibrary.wiley.com/doi/10.1002/anie.5865467?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:48:33 UTC,2026-09-19 15:48:33+00:00,10.1002/anie.5865467,Yusuke Yamauchi,"ABSTRACT
+                  
+                    Developing electrocatalysts with active sites that undergo structural evolution under operating conditions remains a challenge in electrochemical nitrate reduction. Here, we use single‐crystalline mesoporous metal–organic frameworks (MOFs) with distinct pore geometries to investigate the potential‐dependent evolution of iron active sites during electrochemical nitrate‐to‐ammonia conversion. Fe single atoms are anchored within hexagonal and cubic mesoporous frameworks, providing two structurally distinct environments for examining their catalytic and working‐state responses.
+                    Operando
+                    FTIR, H/D isotope‐exchange, and DRT analyses reveal that the 1D hexagonal mesoporous environment is associated with a distinct interfacial‐water response and proton‐involved reaction behavior. This response coincides with changes in the average Fe coordination environment.
+                    Operando
+                    XAS further reveals potential‐dependent changes in both catalysts, with FeSAs@
+                    m
+                    UiO‐P exhibiting a more pronounced Fe‐associated higher‐shell contribution and greater post‐potential recovery. Under the investigated conditions, FeSAs@
+                    m
+                    UiO‐P achieves a Faradaic efficiency of 99.1% at −1.05 V versus RHE and exhibits higher NH
+                    3
+                    selectivity than its cubic counterpart. Collectively, these findings reveal a potential‐dependent correspondence among mesopore architecture, interfacial water organization, and Fe‐site evolution. Although the causal relationship between water organization and Fe‐site evolution remains to be established, this correspondence provides a working framework for investigating reaction‐state‐dependent catalytic interfaces.",crossref,0
+Breaking Charge Symmetry in Co–Zn Dual‑Atom Catalyst With Axial Sulfur Coordination for Efficient Oxygen Reduction Reaction,https://onlinelibrary.wiley.com/doi/10.1002/anie.2911991?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:52:28 UTC,2026-09-19 15:52:28+00:00,10.1002/anie.2911991,Zhenbo Wang,"ABSTRACT
+                  
+                    Dual‐atom catalysts (DACs) represent an emerging and promising paradigm in electrocatalysis. Nevertheless, their symmetric electron density distribution hampers the polarization and subsequent scission of the O─O bond. In this work, a Co–Zn DAC with axial sulfur coordination (Co─Zn@SNC) was constructed via a molecular‐cage encapsulation method. The as‐synthesized catalyst demonstrated outstanding oxygen reduction reaction (ORR) activity across a wide pH range, with half‐wave potentials of 0.902 V in 0.1 M KOH, 0.817 V in 0.1 M PBS, and 0.809 V in 0.1 M HClO
+                    4
+                    . Theoretical calculations revealed that the axially coordinated S not only modulated the orbital and electronic structure of the Co active center but also collaborated with the nearby Zn site to induce an asymmetric charge distribution within the Co‐N
+                    4
+                    , thereby shifting the catalytic activity closer to the peak of the Sabatier volcano plot. The zinc–air battery (ZAB) and microbial fuel cell (MFC) assembled with the Co─Zn@SNC cathode exhibited peak power densities of 166.36 mW cm
+                    −2
+                    and 1.505 W m
+                    −2
+                    , respectively, as well as good stability. The present work provided fundamental insights into the precise regulation and underlying mechanism of DACs, offering a viable strategy for the rational design of advanced electrocatalysts for energy storage and conversion applications.",crossref,0
+Chemical Switching Between B2N and B2C Homoaromaticity,https://onlinelibrary.wiley.com/doi/10.1002/anie.5950356?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:52:34 UTC,2026-09-19 15:52:34+00:00,10.1002/anie.5950356,David Scheschkewitz,"ABSTRACT
+                  
+                    In homoaromatic species, the formal replacement of one or more bonds of the σ‐framework by saturated fragments (the homo bridge) can lead to geometry distortions that preserve a certain degree of cyclic π‐conjugation. While cationic and anionic homoaromatics are well‐established, charge‐neutral derivatives occur less frequently but move increasingly into focus as potential photoswitches for responsive materials. We herein report the synthesis of homoaromatic 1‐aza‐2,4‐diazadiboretane with a bicyclic four‐membered NB
+                    2
+                    C motif and demonstrate experimentally and theoretically that the homoaromatic delocalization can also be chemically shifted from the B
+                    2
+                    N to the B
+                    2
+                    C moiety by deprotonation of the ring carbon atom. Reaction of the anion with carbon‐, silicon‐, and tin‐centered electrophiles, as well as with water as proton source, effectively reinstates the previous electronic situation. Aromaticity analysis confirms the displacement of the 2π homodelocalization and thus the deliberate chemical alteration of the conjugation path, offering substantial potential for the design and synthesis of chemically responsive electronic materials.",crossref,0
+A Descriptor for Non‐Arrhenius Ion Transport Enables Design of Sulfide Superionic Conductors,https://onlinelibrary.wiley.com/doi/10.1002/anie.4940262?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:56:05 UTC,2026-09-19 15:56:05+00:00,10.1002/anie.4940262,Rüdiger‐A. Eichel,"ABSTRACT
+                  
+                    Non‐Arrhenius ion transport is increasingly observed in solid electrolytes but remains difficult to compare across materials or use in screening. A curated database of 867 conductivity‐temperature entries from thio‐LISICON and LGPS‐type sulfides is used to introduce Meyer–Neldel deviation (MND), a physics‐informed, material‐level descriptor of temperature‐dependent changes in apparent activation energy. More than 40% of the analyzed sulfide electrolytes show notable deviations from linear Arrhenius behavior. MND separates low‐conductivity/high‐barrier and superionic/low‐barrier regimes associated with ionic‐radius mismatch, electronegativity difference, configurational entropy, and mixing thermodynamics, while providing a more informative learning target than single‐value activation energies. Sensitivity analyses indicate that material‐level trends remain reasonably robust to variations in conductivity, reference temperature, and sampling density. Application to a reprocessed dataset of 160 compositions and 2,410 conductivity‐temperature entries across seven electrolyte families supports broader applicability. MND‐guided screening of 171 Li
+                    10
+                    Ge
+                    
+                      x
+                    
+                    Si
+                    
+                      y
+                    
+                    Sn
+                    
+                      z
+                    
+                    P
+                    2
+                    S
+                    12
+                    compositions prioritizes Li
+                    10
+                    Ge
+                    0.3
+                    Si
+                    0.15
+                    Sn
+                    0.55
+                    P
+                    2
+                    S
+                    12
+                    , which exhibits a room‐temperature conductivity of 7.21 mS cm
+                    −
+                    1
+                    , an apparent activation energy of 0.288 eV, and weak non‐Arrhenius behavior consistent with prediction. Evaluation of a second composition further supports the multistage screening strategy. These results position MND as a chemically interpretable representation for quantifying, learning, and screening temperature‐dependent ion transport.",crossref,0
+"Taming the Flexible Eight‐Membered Ring: Enantioselective Synthesis of Inherently Chiral Dibenzo[a,e]cyclooctatetraenes Enabled by Pd‐Catalyzed Suzuki–Miyaura Cross‐Coupling",https://onlinelibrary.wiley.com/doi/10.1002/anie.3092581?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:56:12 UTC,2026-09-19 15:56:12+00:00,10.1002/anie.3092581,Ren‐Rong Liu,"ABSTRACT
+                  
+                    Inherently chiral molecules generated by the curvature of planar frameworks represent an emerging class of three‐dimensional chiral architectures, yet their catalytic asymmetric synthesis remains highly challenging. Herein, we report a Pd‐catalyzed asymmetric Suzuki–Miyaura coupling for the efficient construction of inherently chiral dibenzo[
+                    a
+                    ,
+                    e
+                    ]cyclooctatetraene (dbCOT) diene ligands. This strategy enables rapid access to a diverse range of cyclic diene scaffolds with excellent enantioselectivities (up to 98% ee). Mechanistic investigations reveal that the stereochemical outcome is governed by a sequential dynamic kinetic asymmetric transformation (DyKAT) and enantioenrichment process involving two consecutive coupling events. The resulting inherently chiral dbCOT ligands readily coordinate with transition metals and exhibit excellent catalytic performance in Rh‐catalyzed asymmetric additions and Pd‐catalyzed atroposelective transformations. This work establishes a catalytic platform for the synthesis of inherently chiral cyclic diene ligands and expands the toolbox of asymmetric catalysis.",crossref,0
+Electrochemically Self‐Driven Interfacial Selenium Transfer Reshapes Sulfur Redox Pathway in Lithium–Sulfur Batteries,https://onlinelibrary.wiley.com/doi/10.1002/anie.9043892?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 15:59:06 UTC,2026-09-19 15:59:06+00:00,10.1002/anie.9043892,Jinhu Yang,"ABSTRACT
+                  
+                    Sulfur redox in lithium–sulfur (Li–S) batteries is governed by a multistep liquid–solid conversion network involving soluble polysulfide intermediates and continuously evolving solid–liquid interfaces. Here we identify an electrochemically self‐driven interfacial anion‐transfer process at a CoPSe‐based catalytic interface that reshapes sulfur redox pathway. During discharge, selenium released from the catalyst surface becomes incorporated into sulfur intermediates, redirecting sulfur reduction toward Se‐containing species that facilitate bond cleavage, favor shorter‐chain intermediates, and accelerate Li
+                    2
+                    S formation. Meanwhile, partial selenium extraction generates Se‐deficient catalytic sites with enhanced polysulfide affinity, promoting intermediate anchoring and liquid‐to‐solid conversion. Through this coupled evolution of sulfur species and catalytic sites, the interface operates in an operando adaptive mode rather than merely accelerating conventional polysulfide conversion. The resulting Li–S cells deliver 703 mAh g–
+                    1
+                    at 5 C with a capacity decay of 0.016% per cycle over 1,000 cycles at 2 C. This work establishes interfacial anion transfer as a route to pathway‐level sulfur‐redox regulation and adaptive catalyst evolution as a design principle for multistep electrochemical reactions.",crossref,0
+Methane Activation by B5+ Toward a CB5H2+ Isomer Containing a Planar Tetracoordinate Carbon Atom,https://onlinelibrary.wiley.com/doi/10.1002/anie.3185665?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:04:18 UTC,2026-09-19 16:04:18+00:00,10.1002/anie.3185665,Gabriel Merino,"ABSTRACT
+                  
+                    Planar tetracoordinate carbon (ptC) motifs have been identified predominantly in the global‐minimum structures of gas‐phase clusters generated through laser ablation, limiting access to alternative kinetically persistent structures. Here, gas‐phase reactions of mass‐selected B
+                    5
+                    +
+                    clusters with methane at room temperature yield CB
+                    5
+                    H
+                    2
+                    +
+                    through H
+                    2
+                    elimination, as established by time‐of‐flight mass spectrometry, isotope labeling, and kinetic measurements. Electronic‐structure calculations identify a low‐lying ptC‐containing isomer accessible from the nascent dehydrogenation product through a multistep rearrangement pathway. Microcanonical analysis indicates that a fraction of the nascent dehydrogenation product population can overcome the highest barrier before collisional deactivation. Once collisionally stabilized, this species is predicted to be kinetically persistent under the experimental conditions. Its bonding pattern combines localized C–B interactions with multicenter σ and π delocalization across the CB
+                    5
+                    framework. These results establish CB
+                    5
+                    H
+                    2
+                    +
+                    formation and provide computational support for access to a low‐lying ptC‐containing system.",crossref,0
+Bio‐Inspired Bidirectional Proton Regulatory Mechanisms by Anhydride‐Based Hydrogel Electrolytes for High‐Performance Aqueous Zinc‐Ion Batteries,https://onlinelibrary.wiley.com/doi/10.1002/anie.2735155?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:06:02 UTC,2026-09-19 16:06:02+00:00,10.1002/anie.2735155,Xing Li,"ABSTRACT
+                  
+                    Aqueous zinc‐ion batteries (AZIBs) employing hydrogel electrolytes offer significant advantages in mitigating short‐circuit and electrolyte leakage risks. Nevertheless, the sluggish transport kinetics of Zn
+                    2
+                    +
+                    and severe interfacial instability of zinc anodes still severely restrict their further development. Herein, a bio‐inspired hydrogel electrolyte based on poly(acrylamide‐co‐maleic anhydride) (P(AM‐co‐MA)) copolymer is fabricated to construct a dual‐functional polymer network. The dynamic acid–base equilibrium between carboxyl and amide groups enables reversible bidirectional proton buffering, which effectively suppresses the hydrogen evolution reaction and anode corrosion. Meanwhile, the synergistic Zn
+                    2
+                    +
+                    hopping sites constituted of carboxylate and amide groups optimize the ion‐transport microenvironment and accelerate Zn
+                    2
+                    +
+                    migration kinetics synchronously, realizing the coordinated regulation of proton activity and Zn
+                    2
+                    +
+                    transport. Thus, the optimized P(AM‐co‐MA) hydrogel electrolyte delivers a high Zn
+                    2
+                    +
+                    transference number of 0.66 and an ionic conductivity of 16 mS cm
+                    −1
+                    . The assembled Zn||Zn symmetric cells achieve ultra‐long and stable cycling for over 2700 h at 1 mA cm
+                    −1
+                    . Furthermore, the pouch‐type Zn||NaV
+                    3
+                    O
+                    8
+                    full cells based on this hydrogel electrolyte exhibit a high specific capacity of 254 mAh g
+                    −1
+                    at 1 A g
+                    −1
+                    , with a capacity retention of 80% after 120 cycles, verifying the great application potential of this rational design for flexible energy storage devices.",crossref,0
+Low‐Crystalline Ag1.2V3O8: A Zinc‐Ion Storage Cathode With an Ultrahigh Capacity of 525 mAh g−1 Enabled by Oxygen‐Vacancy‐Rich Coordination Environments,https://onlinelibrary.wiley.com/doi/10.1002/anie.3793292?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:06:08 UTC,2026-09-19 16:06:08+00:00,10.1002/anie.3793292,Limin Wu,"ABSTRACT
+                  
+                    Conventional vanadium‐based cathodes are limited by sluggish Zn
+                    2+
+                    transport, poor electronic conductivity, and incomplete utilization of redox‐active sites. Here, redox‐active Ag serves as a regulator of local coordination chemistry in a short‐range‐ordered low‐crystalline vanadate. Ag incorporation reconstructs the local Ag‐V‐O environment, lowers the oxygen‐vacancy formation energy, promotes V
+                    5+
+                    /V
+                    4+
+                    conversion, and activates electrochemically accessible Ag/V dual‐redox centers, thereby simultaneously enhancing electronic accessibility and Zn
+                    2+
+                    transport kinetics. Meanwhile, the short‐range‐ordered low‐crystalline framework stabilizes these defect‐rich coordination environments, provides pseudocapacitive‐favored charge‐storage pathways, and accommodates local structural strain during repeated Zn
+                    2+
+                    insertion/extraction. Density functional theory (DFT) calculations reveal that Ag incorporation markedly reduces the Zn
+                    2+
+                    migration barrier and increases electronic states near the Fermi level. Consequently, the low‐crystalline silver vanadate cathode delivers an ultrahigh reversible capacity of 525.51 mAh g
+                    −1
+                    at 0.1 A g
+                    −1
+                    , a high energy density of 499.23 Wh kg
+                    −1
+                    , excellent rate capability, and outstanding cycling stability with 96.2% capacity retention after 5,000 cycles at 8 A g
+                    −1
+                    . This work demonstrates that local coordination reprogramming unlocks Ag/V redox chemistry and pseudocapacitive Zn
+                    2+
+                    storage, highlighting a promising strategy for enhancing redox accessibility and Zn‐ion storage in low‐crystalline vanadate cathodes.",crossref,0
+"Borosulfates Hosting Se42+ Ions—Crystal Structures, Chemical Bonding, Optical Spectroscopy, and Magnetism",https://onlinelibrary.wiley.com/doi/10.1002/anie.4300417?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:08:58 UTC,2026-09-19 16:08:58+00:00,10.1002/anie.4300417,Henning A. Höppe,"ABSTRACT
+                  
+                    Despite consistent growth in the number of compounds known to host homo‐ and hetero polycations of group 16 elements, only two, Se
+                    4
+                    [HS
+                    2
+                    O
+                    7
+                    ]
+                    2
+                    and Se
+                    4
+                    [S
+                    4
+                    O
+                    13
+                    ], provided an exclusively oxidic coordination environment, the former being the first structural characterization of the Se
+                    4
+                    2+
+                    cation in 1968. With the first selenium borosulfates Se
+                    4
+                    [B(S
+                    2
+                    O
+                    7
+                    )
+                    2
+                    ]
+                    2
+                    (SO
+                    3
+                    ), Se
+                    4
+                    [B(S
+                    2
+                    O
+                    7
+                    )
+                    2
+                    ]
+                    2
+                    , Se
+                    4
+                    [B
+                    2
+                    (SO
+                    4
+                    )
+                    2
+                    (S
+                    2
+                    O
+                    7
+                    )
+                    2
+                    ]‐I, Se
+                    4
+                    [B
+                    2
+                    (SO
+                    4
+                    )
+                    2
+                    (S
+                    2
+                    O
+                    7
+                    )
+                    2
+                    ]‐II, and Se
+                    4
+                    [B
+                    2
+                    (SO
+                    4
+                    )
+                    4
+                    ] we extended this list by five compounds. Aside from Se
+                    4
+                    [HS
+                    2
+                    O
+                    7
+                    ]
+                    2
+                    , Se
+                    4
+                    [S
+                    4
+                    O
+                    13
+                    ] was synthesized but never structurally characterized. In this contribution we also evaluate the crystal structure of the tetrasulfate Se
+                    4
+                    [S
+                    4
+                    O
+                    13
+                    ]. All compounds are synthesized under solvothermal conditions. Powder reflectance spectra of the selenium borosulfates are in accordance with the yellow body color of the compounds. Magnetic measurements confirm the diamagnetic character of the Se
+                    4
+                    2+
+                    ions, in agreement with the calculations. Temperature‐programmed powder X‐ray diffraction reveals that the borosulfates of the study form sequentially with increasing decomposition temperature, enabling their selective synthesis. Furthermore, we performed infrared spectroscopy, Rietveld refinements and thermal analyses.",crossref,0
+Divergent Single‐Oxygen Transmutation of Furans,https://onlinelibrary.wiley.com/doi/10.1002/anie.4084841?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:10:08 UTC,2026-09-19 16:10:08+00:00,10.1002/anie.4084841,Hao Wei,"ABSTRACT
+                  Despite the prevalence of furans in organic chemistry, their direct conversion into diverse heterocycles via oxygen transmutation remains a formidable challenge. This limitation is primarily attributed to the robust endocyclic C—O bonds, its aromaticity, and the lack of strategies to activate inert oxygen atoms. In this study, we report a lithium‐mediated strategy that enables the divergent transmutation of furan oxygen atoms. By employing a mechanochemical ball‐milling protocol, we achieve this transformation under mild and operationally simple conditions, significantly enhancing the efficiency compared to conventional solution‐phase methods. This approach enables the precise replacement of oxygen with diverse elements—including silicon, carbon, selenium, phosphorus, germanium, and titanium—via deoxygenatively dilithiated intermediates that react in situ with various electrophiles, thereby providing direct access to a library of valuable heterocycles. This work highlights a versatile platform for molecular diversification with endocyclic transmutation, demonstrating that mechanochemistry can serve as an operationally efficient and time‐saving strategy for complex heterocycle synthesis.",crossref,0
+Noncovalent Biomolecular Glass Platform for Ultralong Room‐Temperature Phosphorescence,https://onlinelibrary.wiley.com/doi/10.1002/anie.9229523?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:13:32 UTC,2026-09-19 16:13:32+00:00,10.1002/anie.9229523,Xiang Ma,"ABSTRACT
+                  Developing sustainable luminescent materials that integrate biodegradability, high optical transparency and long‐lived room‐temperature phosphorescence (RTP) remains an important challenge. Here we report a series of amino‐acid‐derived noncovalent biomolecular glasses (NBGs) as versatile hosts for organic luminophores. The dense noncovalent interaction network within the NBGs matrix confines the embedded luminophores and suppresses nonradiative relaxation, thereby enabling ultralong RTP. The resulting doped glasses exhibit color‐tunable afterglow from 430 to 610 nm, high transmittance of up to 93%, phosphorescence lifetimes of up to 4.11 s and photoluminescence quantum yields of up to 74.9%. The doped systems also display phosphor‐dependent photophysical behaviors, including excitation‐wavelength‐dependent emission. In addition, the pronounced viscosity changes during NBGs formation endow the materials with strong, substrate‐adaptive adhesion to diverse surfaces. Combining afterglow performance, optical transparency, reprocess ability, recyclability and biodegradability, these NBGs offer a sustainable supramolecular‐glass platform for multifunctional organic phosphorescent materials.",crossref,0
+Catalytic Anionic Substituents Effects as Selectivity Mediators in Photocatalytic Hydrogen Atom Transfers,https://onlinelibrary.wiley.com/doi/10.1002/anie.9361104?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:14:44 UTC,2026-09-19 16:14:44+00:00,10.1002/anie.9361104,Jérémy Merad,"ABSTRACT
+                  Photo‐induced hydrogen atom transfer (HAT) catalysis has become a powerful platform for the direct and selective functionalization of ubiquitous C─H bonds. Traditionally, the outcome of these transformations is dictated by the interplay between C─H bond dissociation energies and polar effects, enabling predictable yet inherently substrate‐controlled selectivity. Recently, a fundamentally new strategy has emerged that relies on the catalytic and reversible modulation of substrate electronics to transiently enhance the reactivity of targeted C─H bonds. Notably, catalytic full or partial deprotonation of oxygen‐ and nitrogen‐containing functional groups has proven remarkably effective in selectively activating adjacent C─H bonds toward HAT, a phenomenon known as the anionic substituent effect. Rather than relying solely on the intrinsic properties of a substrate, this concept allows chemists to reprogram C─H bond reactivity in situ, unlocking previously inaccessible levels of selectivity in the direct functionalization of abundant functional groups under mild photocatalytic conditions. In this minireview, we discuss the mechanistic principles underpinning catalytic anionic substituent effects (CASE), the diverse strategies developed to generate them, and their impact on photocatalytic HAT‐mediated C–H functionalization. By highlighting recent advances and emerging opportunities, we illustrate how transient electronic activation is reshaping the design of selective C–H functionalization reactions.",crossref,0
+Superoxide‐Anion‐Dominated Labeling of Graphene Defects in an Interfacial Nanoreactor of Electron‐Donated Substrate,https://onlinelibrary.wiley.com/doi/10.1002/anie.2000678?af=R,Wiley: Angewandte Chemie International Edition: Table of Contents,2026-09-19 16:18:21 UTC,2026-09-19 16:18:21+00:00,10.1002/anie.2000678,Baoshan Hu,"ABSTRACT
+                  
+                    Harnessing the chemical reactivity of defects delivers a fundamental tool for precise nanoscale characterization of graphene defects. Herein, we develop a confined photochemical strategy based on the photosensitization of dye molecules targeted at the chemically active defects of graphene to label the defects. The graphene/copper interface enriches the electrons of graphene defects to construct a nanoreactor within defect‐positioning interfaces, which modulates the preferential adsorption and the photosensitization reaction pathway of photoexcited methylene blue (MB). The nanoscale reactor preferentially channels the reaction through the Type I electron‐transfer pathway, significantly triggering the •O
+                    2
+                    −
+                    generation while concomitantly attenuating the competing Type II energy‐transfer pathway. Subsequently, the •O
+                    2
+                    −
+                    species deduce the selective etching reaction of Cu at defect sites, with the reaction kinetics following the Higuchi model. Moreover, the etching process exhibits pronounced crystallographic specificity, as evidenced by distinct pit morphologies and etching rates on the copper (111), (110), and (100) crystalline planes. DFT calculations confirm preferential adsorption and favorable electron transfer from defects to •O
+                    2
+                    −
+                    species, unravelling the spatially confined nature of the etching reaction at graphene defects. Collectively, our results demonstrate how localized electronic states can dictate the interfacial reaction landscapes, advancing defect chemistry‐guided identification/modification methodology of two‐dimensional materials.",crossref,0
+Geopolitical risk exposure and innovation in the new energy vehicle industry: Policy implications for transport electrification,https://www.sciencedirect.com/science/article/pii/S0301421526005380?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Boqiang Lin,,,0
+"Corrigendum to “Marginal curtailment of wind and solar PV: Transmission constraints, pricing and access regimes for efficient investment” [Energy Pol. 191 (2024) 114206]",https://www.sciencedirect.com/science/article/pii/S0301421526005379?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Darryl R. Biggar,,,0
+"Does geopolitical risk shape green hydrogen innovation? Policy ecosystem, governance, energy poverty, and global heterogeneity in an age of fragmentation",https://www.sciencedirect.com/science/article/pii/S0301421526005331?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Brahim Bergougui,,,0
+Club convergence in energy poverty of Belt and Road Initiative countries: The role of China's outward foreign direct investment,https://www.sciencedirect.com/science/article/pii/S0301421526005513?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Dan Yang,,,0
+Who leads the global gas market? Geopolitics and price transmission between the U.S. and Europe,https://www.sciencedirect.com/science/article/pii/S0301421526005276?dgcid=rss_sd_all,ScienceDirect Publication: Energy Policy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Cosimo Magazzino,,,0
+Sky-image-based ultra-short-term PV forecasting for green hydrogen production estimation using a deep multimodal learning solar-to-hydrogen framework,https://www.sciencedirect.com/science/article/pii/S030626192601473X?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Qi Huang,,,0
+Cross-domain state-of-health estimation for lithium-ion batteries via meta-transfer learning,https://www.sciencedirect.com/science/article/pii/S030626192601490X?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Qin Zhang,,,0
+Co-optimised design of renewable energy and vertical farming systems for profit-carbon trade-offs,https://www.sciencedirect.com/science/article/pii/S0306261926014947?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Congcong Sun,,,0
+Does causality matter? How incorporating cause-and-effect relationships benefits occupant-centric building control,https://www.sciencedirect.com/science/article/pii/S0306261926014571?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Seungjae Lee,,,0
+Memristive singular value decomposition,https://www.nature.com/articles/s41467-026-76272-2,Nature Communications,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,10.1038/s41467-026-76272-2,Ngai Wong,"Singular value decomposition (SVD) underpins low-rank representation across scientific computing, signal processing, and machine learning. However, iterative computations in SVD are energy-intensive on conventional von Neumann architectures with separate storage and computation units, posing significant challenges for complex information processing. Here, we present memristive SVD (MSVD), built on compute-in-memory (CIM) memristor chips, enabled by a selective representation enhanced architecture (SREA) that ensures numerical fidelity across iterations. We demonstrate MSVD across three tiers of increasing complexity: low-rank approximation for image enhancement and epidemiological data reconstruction; user-scalable recognition where incremental MSVD exploits persistent in-memory storage to incorporate new users without remapping existing information; and large language model weight decomposition where MSVD-based initialization consistently outperforms the standard fine-tuning method on mathematical benchmarks. Beyond software-comparable accuracy, SREA reduces energy overhead and accelerates convergence over unenhanced MSVD, and the full system achieves order-of-magnitude gains in energy efficiency and speed over conventional hardware across all demonstrated scenarios, with these advantages growing progressively with each update cycle in the incremental setting. This work accelerates SVD across various scenarios and extends memristor-based systems towards general computing applications.",nature_html,0
+"Coordinated optimization of virtual power plants in coupled electricity and carbon markets for energy systems: a review of models, algorithms and challenges",https://www.sciencedirect.com/science/article/pii/S0306261926014492?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Guoao Shi,,,0
+A state-of-the-art review and analysis of battery system technologies for maritime electrification,https://www.sciencedirect.com/science/article/pii/S030626192601439X?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Pooya Davari,,,0
+Improving the performance of solar drying systems through phase change energy storage and AI-based optimization techniques: trends and applications,https://www.sciencedirect.com/science/article/pii/S0306261926014613?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Yimin Xiao,,,0
+"Toward precision and intelligence: The convergence and evolution of artificial intelligence, data science, and control theory in building HVAC load forecasting",https://www.sciencedirect.com/science/article/pii/S0306261926014261?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Rui He,,,0
+Artificial intelligence-enabled energy optimization in electric and hybrid vehicles: towards sustainable and smart transportation systems,https://www.sciencedirect.com/science/article/pii/S0306261926014522?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Gadisa Sufe,,,0
+Cost comparison of low- and zero-emission heavy-duty vehicles: a case route analysis,https://www.sciencedirect.com/science/article/pii/S0306261926014728?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Jero Ahola,,,0
+Cloud-ground mapping matching for enhanced regional distributed PV power forecasting,https://www.sciencedirect.com/science/article/pii/S0306261926014467?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Chen Zhang,,,0
+Peak demand estimation in distribution systems: impacts of plug-in electric vehicle charging on load coincidence,https://www.sciencedirect.com/science/article/pii/S0306261926014935?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Björn Laumert,,,0
+A socio-techno-economic optimization model with behavioral participation for on-site PV and workplace V2G under capacity-payment peak shaving in the Russian electricity market,https://www.sciencedirect.com/science/article/pii/S0306261926015230?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Marina Dolmatova,,,0
+"Grid-interactive data centers for sustainable and resilient energy systems: Evolution, trends, and future directions",https://www.sciencedirect.com/science/article/pii/S0306261926014984?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Li Li,,,0
+Optimal planning of heterogeneous charging stations: a methodological framework for simultaneous siting and sizing under finite queue constraints,https://www.sciencedirect.com/science/article/pii/S0306261926014765?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Mika Goto,,,0
+Reducing substructure CAPEX in floating offshore wind: An automated co-design framework for tension leg platform wind turbines,https://www.sciencedirect.com/science/article/pii/S0306261926015576?dgcid=rss_sd_all,ScienceDirect Publication: Applied Energy,2026-09-20 00:00:00 UTC,2026-09-20 00:00:00+00:00,,Xujie Pan,,,0
